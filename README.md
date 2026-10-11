@@ -31545,7 +31545,7 @@ getgenv().__BabisV4Loops = {
 end
 
 -- ============================================================
--- Babis Hub — Halloween Orange UI
+-- Babis Hub — Halloween Orange UI (v9)
 -- Adaptado para o script "Steal An Egg" (Babis)
 -- Requer que o script principal já esteja rodando (getgenv().__BabisV4*)
 -- ============================================================
@@ -31971,14 +31971,15 @@ local function makePage(tabName)
 end
 
 local TABS = {
-    {name = "Main",     icon = "rbxassetid://7733960981"},     -- home
-    {name = "Visuals",  icon = "rbxassetid://7743876754"},     -- eye
-    {name = "Auto",     icon = "rbxassetid://7733655755"},     -- activity
-    {name = "Events",   icon = "rbxassetid://7733798747"},     -- flame
-    {name = "Players",  icon = "rbxassetid://7743876054"},     -- users
-    {name = "Admin",    icon = "rbxassetid://7734056608"},     -- shield
-    {name = "Misc",     icon = "rbxassetid://7743878358"},     -- wrench
-    {name = "Settings", icon = "rbxassetid://7734053495"},     -- settings
+    {name = "Main",       icon = "rbxassetid://7733960981"},   -- home
+    {name = "Prediction", icon = "rbxassetid://7743872758"},   -- target/crosshair
+    {name = "Visuals",    icon = "rbxassetid://7743876754"},   -- eye
+    {name = "Auto",       icon = "rbxassetid://7733655755"},   -- activity
+    {name = "Events",     icon = "rbxassetid://7733798747"},   -- flame
+    {name = "Players",    icon = "rbxassetid://7743876054"},   -- users
+    {name = "Admin",      icon = "rbxassetid://7734056608"},   -- shield
+    {name = "Misc",       icon = "rbxassetid://7743878358"},   -- wrench
+    {name = "Settings",   icon = "rbxassetid://7734053495"},   -- settings
 }
 
 for _, tab in ipairs(TABS) do makePage(tab.name) end
@@ -32590,15 +32591,15 @@ builders["Main"] = function(page)
             CFG.StealMode = mode; CFG.FlyAerial = aerial
             callG("__BabisV4EggRuntime", "setStealMode", mode, aerial)
         end)
-    addSliderCard(page, "Steal Speed", "500-1000. Divisor interno aplica 50-100 para o runtime.", 500, 1000, 600, 3, function(v)
+    addSliderCard(page, "Steal Speed", "500-1000. Interno aplica 50-100 no runtime.", 500, 1000, 600, 3, function(v)
         local scaled = math.floor(v / 10 + 0.5)
         CFG.TweenSpeedMultiplier = scaled
         callG("__BabisV4EggRuntime", "setSpeed", scaled)
     end)
-    addSliderCard(page, "Hold Seconds", "1-10. Quanto maior, mais tempo segura na captura.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v)
+    addSliderCard(page, "Hold Seconds", "1-10. Tempo segurando na captura.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v)
         CFG.StealHoldSeconds = v
     end)
-    addSelectCard(page, "Steal Priority", "Qual ovo priorizar quando vários passam o filtro.",
+    addSelectCard(page, "Steal Priority", "Prioridade quando vários ovos passam o filtro.",
         {"Rarity", "Highest Value", "Heaviest"}, 1, 5, function(opt)
             CFG.StealPriority = opt
             callG("__BabisV4EggRuntime", "setHighestValueFirst", opt == "Highest Value")
@@ -32635,35 +32636,67 @@ builders["Main"] = function(page)
         "Golden, Rainbow", joinList(CFG.StealMutations), 13, function(v)
             setEggFilter("StealMutations", "mutations", "mutation", v)
         end)
-    addInputCard(page, "Valor mínimo por segundo", "Aceita k/m/b.",
-        "500k, 2m, 1b", "", 14, function(v)
-            local n = parseMoney(v); CFG.StealMinValue = n
-            callG("__BabisV4EggRuntime", "setMinValuePerSec", n)
-        end)
-    addInputCard(page, "Peso mínimo (kg)", "0 = qualquer peso.",
-        "12000", tostring(CFG.StealMinWeight or 0), 15, function(v)
-            local n = tonumber(tostring(v or ""):gsub("[^%d%.]", "")) or 0
-            CFG.StealMinWeight = n
-            callG("__BabisV4EggRuntime", "setMinWeightKg", n)
-        end)
-    addClickButton(page, "Egg Checker", "Lista de ovos disponíveis no mapa.", "rbxassetid://7733960981", 16, function()
-        local panels = genv().__BabisV4Panels
-        if panels and panels.openChecker then panels.openChecker() else Notify("Painel", "Indisponível") end
+    addInputCard(page, "Valor mínimo por segundo", "Aceita k/m/b.", "500k, 2m, 1b", "", 14, function(v)
+        local n = parseMoney(v); CFG.StealMinValue = n
+        callG("__BabisV4EggRuntime", "setMinValuePerSec", n)
     end)
-    addClickButton(page, "Spawn Analyst", "Tracker global de spawns + timeline.", "rbxassetid://8997386861", 17, function()
-        local panels = genv().__BabisV4Panels
-        if panels and panels.openAnalyst then panels.openAnalyst() else Notify("Painel", "Indisponível") end
+    addInputCard(page, "Peso mínimo (kg)", "0 = qualquer peso.", "12000", tostring(CFG.StealMinWeight or 0), 15, function(v)
+        local n = tonumber(tostring(v or ""):gsub("[^%d%.]", "")) or 0
+        CFG.StealMinWeight = n
+        callG("__BabisV4EggRuntime", "setMinWeightKg", n)
     end)
 end
 
-builders["Visuals"] = function(page)
-    addToggleButton(page, "Egg ESP", "Mostra etiqueta em cima de cada ovo.", CFG.EggESP == true, 1, function(v)
-        CFG.EggESP = v
-        callG("__BabisV4EggRuntime", "setEggEsp", v)
-    end)
-    addInputCard(page, "ESP Details", "Campos separados por vírgula.",
+-- ============================================================
+-- PREDICTION TAB — painéis de análise + ESP detalhado
+-- ============================================================
+builders["Prediction"] = function(page)
+    local Egg = genv().__BabisV4EggRuntime
+    local panels = genv().__BabisV4Panels
+
+    addClickButton(page, "Egg Checker", "Lista ao vivo dos ovos no campo, melhor $/s primeiro. Seleciona e rouba manual.",
+        "rbxassetid://7733960981", 1, function()
+            if panels and panels.openChecker then panels.openChecker()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Egg Spawn Analyst", "Tracker global de spawns + timeline sincronizada entre players.",
+        "rbxassetid://8997386861", 2, function()
+            if panels and panels.openAnalyst then panels.openAnalyst()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Egg Logs", "Feed ao vivo de todo ovo que spawnou no servidor.",
+        "rbxassetid://7733793319", 3, function()
+            if panels and panels.openLogs then panels.openLogs()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Egg Board", "Lista ordenável dos ovos atualmente no mapa.",
+        "rbxassetid://7743869612", 4, function()
+            if panels and panels.openBoard then panels.openBoard()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Inventory & Base", "Pets, ovos e status do plot em uma janela só.",
+        "rbxassetid://7734056813", 5, function()
+            if panels and panels.openInventory then panels.openInventory()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Abrir Todos os Painéis", "Abre Checker, Analyst, Logs, Board, Inventory de uma vez.",
+        "rbxassetid://7743866903", 6, function()
+            if panels and panels.openAll then panels.openAll()
+            else Notify("Prediction", "Painel indisponível") end
+        end)
+    addClickButton(page, "Fechar Todos os Painéis", "Fecha tudo.",
+        "rbxassetid://7743878857", 7, function()
+            if panels and panels.closeAll then panels.closeAll() end
+        end)
+
+    addToggleButton(page, "Egg ESP", "Mostra etiqueta em cima de cada ovo no mapa (parte do Prediction).",
+        CFG.EggESP == true, 8, function(v)
+            CFG.EggESP = v
+            callG("__BabisV4EggRuntime", "setEggEsp", v)
+        end)
+    addInputCard(page, "ESP Details", "Campos separados por vírgula: Name, Rarity, Value, Weight, Mutation, Placed Eggs.",
         "Name, Rarity, Value, Weight, Mutation, Placed Eggs",
-        joinList(CFG.EspDetails), 2, function(v)
+        joinList(CFG.EspDetails), 9, function(v)
             local list = splitList(v)
             CFG.EspDetails = list
             local sel = {}
@@ -32675,31 +32708,47 @@ builders["Visuals"] = function(page)
             callG("__BabisV4EggRuntime", "setEspOption", "mutation", sel.Mutation == true)
             callG("__BabisV4EggRuntime", "setEspOption", "placed", sel["Placed Eggs"] == true)
         end)
-    addToggleButton(page, "Backpack Value/s", "Mostra $/s em cada slot do inventário.", CFG.BackpackRateEsp == true, 3, function(v)
-        CFG.BackpackRateEsp = v
-        callG("__BabisV4ServerHop", "setBackpackRates", v)
-    end)
-    addToggleButton(page, "Butterfly ESP", "Mostra tier e distância das borboletas durante o Bloom.", CFG.ButterflyEsp == true, 4, function(v)
-        CFG.ButterflyEsp = v
-    end)
-    addToggleButton(page, "Noclip", "Atravessa paredes.", CFG.Noclip == true, 5, function(v)
+    addToggleButton(page, "Backpack Value/s", "Mostra $/s em cada slot do inventário.",
+        CFG.BackpackRateEsp == true, 10, function(v)
+            CFG.BackpackRateEsp = v
+            callG("__BabisV4ServerHop", "setBackpackRates", v)
+        end)
+    addToggleButton(page, "Butterfly ESP", "Tier + distância das borboletas durante o Bloom.",
+        CFG.ButterflyEsp == true, 11, function(v)
+            CFG.ButterflyEsp = v
+        end)
+end
+
+-- ============================================================
+-- VISUALS TAB — cosmético e movimento visual
+-- ============================================================
+builders["Visuals"] = function(page)
+    addToggleButton(page, "Noclip", "Atravessa paredes.", CFG.Noclip == true, 1, function(v)
         CFG.Noclip = v
         callG("__BabisV4Roaming", "setNoclip", v)
     end)
-    addClickButton(page, "Egg Logs", "Log de todos os ovos que spawnaram.", "rbxassetid://7733793319", 6, function()
-        local p = genv().__BabisV4Panels; if p and p.openLogs then p.openLogs() end
+    addToggleButton(page, "Botting Mode", "Desliga renderização 3D (tela preta).", CFG.BottingMode == true, 2, function(v)
+        CFG.BottingMode = v
+        callG("__BabisV4Roaming", "setBottingMode", v)
     end)
-    addClickButton(page, "Egg Board", "Lista dos ovos atuais no mapa.", "rbxassetid://7743869612", 7, function()
-        local p = genv().__BabisV4Panels; if p and p.openBoard then p.openBoard() end
+    addToggleButton(page, "Anti Cutscene", "Fecha cutscenes e intro automaticamente.", CFG.AntiCutscene == true, 3, function(v)
+        CFG.AntiCutscene = v
     end)
-    addClickButton(page, "Inventory & Base", "Pets, ovos e status do plot.", "rbxassetid://7734056813", 8, function()
-        local p = genv().__BabisV4Panels; if p and p.openInventory then p.openInventory() end
-    end)
-    addClickButton(page, "Abrir Todas Janelas", "Abre todos os painéis de uma vez.", "rbxassetid://7743866903", 9, function()
-        local p = genv().__BabisV4Panels; if p and p.openAll then p.openAll() end
-    end)
+    addClickButton(page, "Abrir Todos os Painéis", "Egg logs, board, inventário, checker, analyst.",
+        "rbxassetid://7743866903", 4, function()
+            local p = genv().__BabisV4Panels
+            if p and p.openAll then p.openAll() end
+        end)
+    addClickButton(page, "Fechar Todos os Painéis", "Fecha todos os painéis.",
+        "rbxassetid://7743878857", 5, function()
+            local p = genv().__BabisV4Panels
+            if p and p.closeAll then p.closeAll() end
+        end)
 end
 
+-- ============================================================
+-- AUTO TAB — automações de pet/egg/base
+-- ============================================================
 builders["Auto"] = function(page)
     addToggleButton(page, "Auto Place Egg", "Coloca ovos do inventário no plot.", CFG.AutoPlace == true, 1, function(v)
         CFG.AutoPlace = v
@@ -32802,36 +32851,50 @@ builders["Auto"] = function(page)
     end)
 end
 
+-- ============================================================
+-- EVENTS TAB — TUDO de Butterfly Bloom, Dr Scramble e Ring Event
+-- ============================================================
 builders["Events"] = function(page)
     local btf = genv().__BabisV4ButterflyRuntime
     local modes = btf and btf.modeOptions and btf.modeOptions() or {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
     local recipes = btf and btf.recipeOptions and btf.recipeOptions() or {"All Recipes", "For Essence (shortfall only)"}
 
-    addToggleButton(page, "Auto Claim Net", "Pega a rede da árvore encantada.", CFG.ButterflyAutoNet == true, 1, function(v)
-        CFG.ButterflyAutoNet = v
-    end)
-    addToggleButton(page, "Auto Catch", "Captura durante o Bloom.", CFG.ButterflyAutoCatch == true, 2, function(v)
-        CFG.ButterflyAutoCatch = v
-    end)
-    addSelectCard(page, "Catch Mode", "Tween, Stand, Zigzag ou Circle.", modes, 1, 3, function(opt)
-        if btf and btf.setMode then pcall(btf.setMode, opt) end
-    end)
-    addInputCard(page, "Catch Tiers", "Tiers (vírgula). Vazio = todos.",
+    -- -------- Butterfly Bloom --------
+    addToggleButton(page, "Butterfly: Auto Claim Net", "Pega a rede da árvore encantada (uma vez).",
+        CFG.ButterflyAutoNet == true, 1, function(v)
+            CFG.ButterflyAutoNet = v
+        end)
+    addToggleButton(page, "Butterfly: Auto Catch", "Captura durante todo o Bloom (5min a cada 30min).",
+        CFG.ButterflyAutoCatch == true, 2, function(v)
+            CFG.ButterflyAutoCatch = v
+        end)
+    addSelectCard(page, "Butterfly: Catch Mode", "Tween persegue uma por vez. Stand espera no meio. Zigzag varre. Circle circula.",
+        modes, 1, 3, function(opt)
+            if btf and btf.setMode then pcall(btf.setMode, opt) end
+        end)
+    addInputCard(page, "Butterfly: Catch Tiers", "Tiers (vírgula). Vazio = todos.",
         "Golden, Purple, Blue, Green", joinList(CFG.ButterflyTiers), 4, function(v)
             local list = splitList(v)
             CFG.ButterflyTiers = list
             if btf and btf.setTiers then pcall(btf.setTiers, list) end
         end)
-    addToggleButton(page, "Auto Trade Up", "Faz trocas conforme recipe.", CFG.ButterflyAutoTrade == true, 5, function(v)
-        CFG.ButterflyAutoTrade = v
-    end)
-    addSelectCard(page, "Trade Recipe", "Qual receita usar.", recipes, 1, 6, function(opt)
-        if btf and btf.setRecipe then pcall(btf.setRecipe, opt) end
-    end)
-    addToggleButton(page, "Auto Craft Essence", "Crafta Enchanted Essence quando receita completa.", CFG.ButterflyAutoCraft == true, 7, function(v)
-        CFG.ButterflyAutoCraft = v
-    end)
-    addClickButton(page, "Claim Net Now", "Pega a rede agora.", "rbxassetid://7734042071", 8, function()
+    addToggleButton(page, "Butterfly: ESP", "Mostra tier + distância das borboletas.",
+        CFG.ButterflyEsp == true, 5, function(v)
+            CFG.ButterflyEsp = v
+        end)
+    addToggleButton(page, "Butterfly: Auto Trade Up", "Faz trocas no machine dentro da árvore.",
+        CFG.ButterflyAutoTrade == true, 6, function(v)
+            CFG.ButterflyAutoTrade = v
+        end)
+    addSelectCard(page, "Butterfly: Trade Recipe", "Qual receita o Auto Trade Up roda.",
+        recipes, 1, 7, function(opt)
+            if btf and btf.setRecipe then pcall(btf.setRecipe, opt) end
+        end)
+    addToggleButton(page, "Butterfly: Auto Craft Essence", "Crafta Enchanted Essence quando receita completa.",
+        CFG.ButterflyAutoCraft == true, 8, function(v)
+            CFG.ButterflyAutoCraft = v
+        end)
+    addClickButton(page, "Butterfly: Claim Net Now", "Pega a rede agora.", "rbxassetid://7734042071", 9, function()
         if btf and btf.claimNet then task.spawn(function()
             btf.manual = true
             local ok, r, reason = pcall(btf.claimNet)
@@ -32839,7 +32902,7 @@ builders["Events"] = function(page)
             Notify("Butterfly", ok and (r and "Rede coletada" or tostring(reason)) or tostring(r))
         end) end
     end)
-    addClickButton(page, "Trade Up Now", "Roda recipe uma vez.", "rbxassetid://7734051052", 9, function()
+    addClickButton(page, "Butterfly: Trade Up Now", "Roda recipe uma vez.", "rbxassetid://7734051052", 10, function()
         if btf and btf.tradeUp then task.spawn(function()
             btf.manual = true
             local ok, r, reason = pcall(btf.tradeUp)
@@ -32847,7 +32910,7 @@ builders["Events"] = function(page)
             Notify("Butterfly", ok and (r and ("Trocas: " .. tostring(reason or 0))) or tostring(reason))
         end) end
     end)
-    addClickButton(page, "Craft Essence Now", "Crafta Essence agora.", "rbxassetid://8997388430", 10, function()
+    addClickButton(page, "Butterfly: Craft Now", "Crafta Essence agora.", "rbxassetid://8997388430", 11, function()
         if btf and btf.craft then task.spawn(function()
             btf.manual = true
             local ok, r, reason = pcall(btf.craft)
@@ -32855,50 +32918,79 @@ builders["Events"] = function(page)
             Notify("Butterfly", ok and (r and ("Crafted: " .. tostring(reason or 0))) or tostring(reason))
         end) end
     end)
-    addToggleButton(page, "Dr Scramble Auto Buy", "Compra itens selecionados na loja.", CFG.ScrambleAutoBuy == true, 11, function(v)
-        CFG.ScrambleAutoBuy = v
+    addClickButton(page, "Butterfly: Status", "Mostra status atual do Bloom.", "rbxassetid://7733964719", 12, function()
+        local snap = btf and btf.snap or {}
+        Notify("Butterfly Bloom",
+            tostring(btf and btf.status or "Indisponível") .. " | " ..
+            tostring(snap.active and "Live" or "Not live") .. " | " ..
+            tostring(snap.net and "Net owned" or "No net"))
     end)
-    addInputCard(page, "Dr Scramble Buy List", "Labels da loja (vírgula).", "Item A, Item B",
-        joinList(CFG.ScrambleBuyList), 12, function(v) CFG.ScrambleBuyList = splitList(v) end)
-    addToggleButton(page, "Auto Trade-In", "Saca pets para o Dr Scramble.", CFG.ScrambleTradeInTrade == true, 13, function(v)
-        CFG.ScrambleTradeInTrade = v
-    end)
-    addToggleButton(page, "Auto Free Reroll", "Usa reroll grátis quando faltar pet.", CFG.ScrambleTradeInReroll == true, 14, function(v)
-        CFG.ScrambleTradeInReroll = v
-    end)
-    addInputCard(page, "Banner Filter", "Banners alvo (vírgula). Vazio = qualquer.",
-        "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 15, function(v)
+
+    -- -------- Dr Scramble --------
+    addToggleButton(page, "Scramble: Auto Buy", "Compra itens selecionados na loja com samples.",
+        CFG.ScrambleAutoBuy == true, 13, function(v) CFG.ScrambleAutoBuy = v end)
+    addInputCard(page, "Scramble: Buy List", "Labels da loja (vírgula).",
+        "Item A, Item B", joinList(CFG.ScrambleBuyList), 14, function(v)
+            CFG.ScrambleBuyList = splitList(v)
+        end)
+    addToggleButton(page, "Scramble: Auto Trade-In", "Saca pets para o Dr Scramble quando receita completa.",
+        CFG.ScrambleTradeInTrade == true, 15, function(v) CFG.ScrambleTradeInTrade = v end)
+    addToggleButton(page, "Scramble: Auto Free Reroll", "Usa reroll grátis quando faltar pet.",
+        CFG.ScrambleTradeInReroll == true, 16, function(v) CFG.ScrambleTradeInReroll = v end)
+    addInputCard(page, "Scramble: Banner Filter", "Banners alvo (vírgula). Vazio = qualquer.",
+        "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 17, function(v)
             CFG.ScrambleTradeInBanners = splitList(v)
         end)
-    addClickButton(page, "Trade-In Once", "Uma troca agora.", "rbxassetid://7734006080", 16, function()
+    addClickButton(page, "Scramble: Trade-In Once", "Uma troca agora.", "rbxassetid://7734006080", 18, function()
         local t = genv().__BabisV4ScrambleTradeIn
         if t and t.tradeOnce then
             local ok, r, reason = pcall(t.tradeOnce)
             Notify("Scramble", ok and (r and "Troca feita" or tostring(reason)) or tostring(r))
         end
     end)
-    addClickButton(page, "Use Free Reroll", "Usa um reroll grátis.", "rbxassetid://7734051052", 17, function()
+    addClickButton(page, "Scramble: Use Free Reroll", "Usa um reroll grátis.", "rbxassetid://7734051052", 19, function()
         local t = genv().__BabisV4ScrambleTradeIn
         if t and t.reroll then
             local ok, r, reason = pcall(t.reroll)
             Notify("Scramble", ok and (r and "Recipe trocada" or tostring(reason)) or tostring(r))
         end
     end)
-    addToggleButton(page, "Auto Boss", "Entra e luta no boss do Scramble.", CFG.ScrambleBossAuto == true, 18, function(v)
-        CFG.ScrambleBossAuto = v
-        callG("__BabisV4EggRuntime", "_reconcileScramblePortal")
-    end)
-    addClickButton(page, "Open Scramble Lab", "Abre a UI do Trade-In do jogo.", "rbxassetid://7743866903", 19, function()
+    addClickButton(page, "Scramble: Open Lab", "Abre a UI de Trade-In do jogo.", "rbxassetid://7743866903", 20, function()
         pcall(function() require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn") end)
     end)
+    addToggleButton(page, "Scramble: Auto Boss", "Entra e luta no boss do Scramble.",
+        CFG.ScrambleBossAuto == true, 21, function(v)
+            CFG.ScrambleBossAuto = v
+            callG("__BabisV4EggRuntime", "_reconcileScramblePortal")
+        end)
+    addClickButton(page, "Scramble: Status", "Mostra status do shop e do trade-in.", "rbxassetid://7733964719", 22, function()
+        local shop = genv().__BabisV4ScrambleRuntime
+        local trade = genv().__BabisV4ScrambleTradeIn
+        local snap = shop and shop.snapshot and shop.snapshot()
+        Notify("Scramble",
+            tostring(shop and shop.status or "Indisponível") .. " | " ..
+            tostring(trade and trade.banner or (snap and snap.State and "Event active" or "Not active")))
+    end)
+
+    -- -------- Ring Event --------
+    addToggleButton(page, "Auto Ring Event", "Rota automática: safe → Forest → Angels & Demons → volta.",
+        CFG.AutoRingEvent == true, 23, function(v)
+            CFG.AutoRingEvent = v
+            local loops = genv().__BabisV4Loops
+            if v and loops and loops.ringEvent then loops.ringEvent() end
+        end)
 end
 
+-- ============================================================
+-- PLAYERS TAB
+-- ============================================================
 builders["Players"] = function(page)
     local ps = genv().__BabisV4PlayerSteal
-    addToggleButton(page, "Auto Steal From Players", "Persegue e rouba ovo de outros jogadores.", CFG.StealPlayers == true, 1, function(v)
-        CFG.StealPlayers = v
-        callG("__BabisV4PlayerSteal", "setEnabled", v)
-    end)
+    addToggleButton(page, "Auto Steal From Players", "Persegue e rouba ovo de outros jogadores.",
+        CFG.StealPlayers == true, 1, function(v)
+            CFG.StealPlayers = v
+            callG("__BabisV4PlayerSteal", "setEnabled", v)
+        end)
     addInputCard(page, "Target Rarities", "Raridades (vírgula). Vazio = usa filtro do Main.",
         "Mythic, Secret", joinList(CFG.StealPlayerRarities), 2, function(v)
             CFG.StealPlayerRarities = splitList(v)
@@ -32949,43 +33041,48 @@ builders["Players"] = function(page)
     end
 end
 
+-- ============================================================
+-- ADMIN TAB
+-- ============================================================
 builders["Admin"] = function(page)
-    local mv = genv().__BabisV4MovementExtras
-    addToggleButton(page, "Auto Steal Capture", "Evento Capture The Egg: pega e segura o ovo.", CFG.AutoStealCapture == true, 1, function(v)
-        CFG.AutoStealCapture = v
-    end)
-    addToggleButton(page, "Admin Abuse Boost", "Só ligar quando Admin Abuse estiver ativo.", false, 2, function(v)
-        local fn = genv().__BabisV4SetAdminBoost
-        if fn then pcall(fn, v) else genv().__BabisV4AdminBoost = v end
-    end)
-    addToggleButton(page, "Fly For Capture", "Sobe e fica parado depois de pegar o ovo.", CFG.FlyForCapture == true, 3, function(v)
-        CFG.FlyForCapture = v
-        callG("__BabisV4MovementExtras", "setFlyForCapture", v)
-    end)
-    addToggleButton(page, "Instant Grab", "Coleta ovo com toque rápido.", CFG.InstantGrab == true, 4, function(v)
-        CFG.InstantGrab = v
-        callG("__BabisV4MovementExtras", "setInstantGrab", v)
-    end)
-    addToggleButton(page, "Infinite Jump", "Pula no ar quantas vezes quiser.", CFG.InfiniteJump == true, 5, function(v)
-        CFG.InfiniteJump = v
-        callG("__BabisV4MovementExtras", "setInfiniteJump", v)
-    end)
-    addSliderCard(page, "Walk Speed Multiplier", "1.0 = normal, até 2.1.", 10, 21, math.floor((CFG.WalkSpeedMultiplier or 1) * 10), 6, function(v)
-        local m = v / 10
-        CFG.WalkSpeedMultiplier = m
-        callG("__BabisV4MovementExtras", "setSpeedMultiplier", m)
-    end)
-    addToggleButton(page, "Auto Ring Event", "Rota do ring event automática.", CFG.AutoRingEvent == true, 7, function(v)
-        CFG.AutoRingEvent = v
-        local loops = genv().__BabisV4Loops
-        if v and loops and loops.ringEvent then loops.ringEvent() end
-    end)
-    addToggleButton(page, "Anti Hit Guard", "Anti-knockback manual (fora do Auto Steal).", CFG.AntiHitGuard == true, 8, function(v)
-        CFG.AntiHitGuard = v
-        callG("__BabisV4AntiHitGuard", "setEnabled", v)
-    end)
+    addToggleButton(page, "Auto Steal Capture", "Evento Capture The Egg: pega e segura o ovo.",
+        CFG.AutoStealCapture == true, 1, function(v) CFG.AutoStealCapture = v end)
+    addToggleButton(page, "Admin Abuse Boost", "Só ligar quando Admin Abuse estiver ativo.",
+        false, 2, function(v)
+            local fn = genv().__BabisV4SetAdminBoost
+            if fn then pcall(fn, v) else genv().__BabisV4AdminBoost = v end
+        end)
+    addToggleButton(page, "Fly For Capture", "Sobe e fica parado depois de pegar o ovo.",
+        CFG.FlyForCapture == true, 3, function(v)
+            CFG.FlyForCapture = v
+            callG("__BabisV4MovementExtras", "setFlyForCapture", v)
+        end)
+    addToggleButton(page, "Instant Grab", "Coleta ovo com toque rápido.",
+        CFG.InstantGrab == true, 4, function(v)
+            CFG.InstantGrab = v
+            callG("__BabisV4MovementExtras", "setInstantGrab", v)
+        end)
+    addToggleButton(page, "Infinite Jump", "Pula no ar quantas vezes quiser.",
+        CFG.InfiniteJump == true, 5, function(v)
+            CFG.InfiniteJump = v
+            callG("__BabisV4MovementExtras", "setInfiniteJump", v)
+        end)
+    addSliderCard(page, "Walk Speed Multiplier", "1.0 = normal, até 2.1.",
+        10, 21, math.floor((CFG.WalkSpeedMultiplier or 1) * 10), 6, function(v)
+            local m = v / 10
+            CFG.WalkSpeedMultiplier = m
+            callG("__BabisV4MovementExtras", "setSpeedMultiplier", m)
+        end)
+    addToggleButton(page, "Anti Hit Guard", "Anti-knockback manual (fora do Auto Steal).",
+        CFG.AntiHitGuard == true, 7, function(v)
+            CFG.AntiHitGuard = v
+            callG("__BabisV4AntiHitGuard", "setEnabled", v)
+        end)
 end
 
+-- ============================================================
+-- MISC TAB
+-- ============================================================
 builders["Misc"] = function(page)
     addToggleButton(page, "Anti Treadmill", "Nunca fica na esteira.", CFG.AntiTreadmill == true, 1, function(v)
         CFG.AntiTreadmill = v
@@ -32996,84 +33093,87 @@ builders["Misc"] = function(page)
             callG("__BabisV4TreadmillManager", "setIdleFarm", CFG.AutoTreadmillIdle == true)
         end
     end)
-    addToggleButton(page, "Auto Treadmill", "Farm de speed quando nada rodando.", CFG.AutoTreadmillIdle == true, 2, function(v)
-        CFG.AutoTreadmillIdle = v
-        callG("__BabisV4TreadmillManager", "setIdleFarm", v and not CFG.AntiTreadmill)
-    end)
-    addToggleButton(page, "Auto Upgrade Treadmill", "Compra próximo tier.", CFG.AutoTreadmillUpgrade == true, 3, function(v)
-        CFG.AutoTreadmillUpgrade = v
-        callG("__BabisV4TreadmillManager", "setAutoUpgrade", v)
-    end)
-    addToggleButton(page, "Hop When Nothing Matches", "Hop automático quando nada bate o filtro.", CFG.HopNoMatch == true, 4, function(v)
-        CFG.HopNoMatch = v
-        if v then callG("__BabisV4ServerHop", "startHopLoop") end
-    end)
-    addSliderCard(page, "Hop Cooldown", "Segundos entre hops.", 1, 60, tonumber(CFG.HopCooldown) or 5, 5, function(v)
-        CFG.HopCooldown = v
-    end)
-    addSelectCard(page, "Private Server Max", "Limite de players na sala alvo.",
-        {"1", "2", "3", "4", "5"}, tonumber(tostring(CFG.PrivateServerMax or "2"):match("%d+")) or 2, 6, function(opt)
-            CFG.PrivateServerMax = tostring(opt)
+    addToggleButton(page, "Auto Treadmill", "Farm de speed quando nada rodando.",
+        CFG.AutoTreadmillIdle == true, 2, function(v)
+            CFG.AutoTreadmillIdle = v
+            callG("__BabisV4TreadmillManager", "setIdleFarm", v and not CFG.AntiTreadmill)
         end)
-    addToggleButton(page, "Private Server Auto", "Fica trocando de sala até achar uma vazia.", CFG.PrivateServerAuto == true, 7, function(v)
-        CFG.PrivateServerAuto = v
-        if v then callG("__BabisV4ServerHop", "startPrivateAutoHop") end
-    end)
+    addToggleButton(page, "Auto Upgrade Treadmill", "Compra próximo tier.",
+        CFG.AutoTreadmillUpgrade == true, 3, function(v)
+            CFG.AutoTreadmillUpgrade = v
+            callG("__BabisV4TreadmillManager", "setAutoUpgrade", v)
+        end)
+    addToggleButton(page, "Hop When Nothing Matches", "Hop automático quando nada bate o filtro.",
+        CFG.HopNoMatch == true, 4, function(v)
+            CFG.HopNoMatch = v
+            if v then callG("__BabisV4ServerHop", "startHopLoop") end
+        end)
+    addSliderCard(page, "Hop Cooldown", "Segundos entre hops.",
+        1, 60, tonumber(CFG.HopCooldown) or 5, 5, function(v) CFG.HopCooldown = v end)
+    addSelectCard(page, "Private Server Max", "Limite de players na sala alvo.",
+        {"1", "2", "3", "4", "5"}, tonumber(tostring(CFG.PrivateServerMax or "2"):match("%d+")) or 2, 6,
+        function(opt) CFG.PrivateServerMax = tostring(opt) end)
+    addToggleButton(page, "Private Server Auto", "Fica trocando de sala até achar uma vazia.",
+        CFG.PrivateServerAuto == true, 7, function(v)
+            CFG.PrivateServerAuto = v
+            if v then callG("__BabisV4ServerHop", "startPrivateAutoHop") end
+        end)
     addClickButton(page, "Hop Server Now", "Procura sala vazia agora.", "rbxassetid://7734020942", 8, function()
         local h = genv().__BabisV4ServerHop
         if h and h.hopPrivateOnce then task.spawn(function() pcall(h.hopPrivateOnce) end) end
     end)
-    addToggleButton(page, "Botting Mode", "Desliga renderização 3D (tela preta).", CFG.BottingMode == true, 9, function(v)
-        CFG.BottingMode = v
-        callG("__BabisV4Roaming", "setBottingMode", v)
-    end)
-    addToggleButton(page, "Anti Cutscene", "Fecha cutscenes e intro.", CFG.AntiCutscene == true, 10, function(v)
-        CFG.AntiCutscene = v
-    end)
-    addToggleButton(page, "Anti AFK", "Bloqueia kick por inatividade.", CFG.AntiAFK ~= false, 11, function(v)
+    addToggleButton(page, "Anti AFK", "Bloqueia kick por inatividade.", CFG.AntiAFK ~= false, 9, function(v)
         CFG.AntiAFK = v
         local fn = genv().__BabisV4SetAntiAfkEnabled
         if fn then pcall(fn, v) end
     end)
-    addToggleButton(page, "Auto Reconnect", "Reconecta ao servidor após disconnect.", CFG.AutoReconnect ~= false, 12, function(v)
-        CFG.AutoReconnect = v
-        local fn = genv().__BabisV4SetAutoReconnect
-        if fn then pcall(fn, v) end
-    end)
-    addToggleButton(page, "Auto Execute (Rejoin)", "Re-executa o script ao reentrar.", CFG.AutoExecute == true, 13, function(v)
-        CFG.AutoExecute = v
-        local fn = genv().__BabisV4SetAutoExecute
-        if fn then pcall(fn, v) end
-    end)
-    addToggleButton(page, "Startup Boost", "Reduz gráficos no boot.", CFG.StartupBoost ~= false, 14, function(v)
+    addToggleButton(page, "Auto Reconnect", "Reconecta ao servidor após disconnect.",
+        CFG.AutoReconnect ~= false, 10, function(v)
+            CFG.AutoReconnect = v
+            local fn = genv().__BabisV4SetAutoReconnect
+            if fn then pcall(fn, v) end
+        end)
+    addToggleButton(page, "Auto Execute (Rejoin)", "Re-executa o script ao reentrar.",
+        CFG.AutoExecute == true, 11, function(v)
+            CFG.AutoExecute = v
+            local fn = genv().__BabisV4SetAutoExecute
+            if fn then pcall(fn, v) end
+        end)
+    addToggleButton(page, "Startup Boost", "Reduz gráficos no boot.", CFG.StartupBoost ~= false, 12, function(v)
         CFG.StartupBoost = v
         local fn = genv().__BabisV4SetStartupBoost
         if fn then pcall(fn, v) end
     end)
-    addToggleButton(page, "Uncap FPS", "Cap 240 quando ligado, 60 quando desligado.", true, 15, function(v)
+    addToggleButton(page, "Uncap FPS", "Cap 240 ligado, 60 desligado.", true, 13, function(v)
         local fn = genv().__BabisV4SetCapFps
         if fn then pcall(fn, v and 240 or 60) end
     end)
-    addClickButton(page, "Rejoin This Server", "Reentra no servidor atual.", "rbxassetid://7734051052", 16, function()
-        pcall(function() game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
-    end)
-    addClickButton(page, "Stop & Unload", "Desliga tudo e fecha o hub.", "rbxassetid://7734042423", 17, function()
-        local flags = {"AutoSteal","AutoPlace","AutoHatch","AutoSell","AutoSellEgg","StealPlayers",
-            "AutoFavorite","AutoFusePets","AutoEquipBest","AutoClaimOffline","AutoBaseUpgrade",
-            "AutoClaimAlmanac","Noclip","BottingMode","AntiCutscene","AutoRingEvent",
-            "ButterflyAutoCatch","ButterflyAutoTrade","ButterflyAutoCraft","ScrambleBossAuto"}
-        for _, k in ipairs(flags) do CFG[k] = false end
-        callG("__BabisV4EggRuntime", "setEnabled", false)
-        local fn = genv().__BabisV4HubShutdown
-        if type(fn) == "function" then task.delay(0.2, function() pcall(fn) end) end
-        gui:Destroy()
-    end)
+    addClickButton(page, "Rejoin This Server", "Reentra no servidor atual.",
+        "rbxassetid://7734051052", 14, function()
+            pcall(function()
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+        end)
+    addClickButton(page, "Stop & Unload", "Desliga tudo e fecha o hub.",
+        "rbxassetid://7734042423", 15, function()
+            local flags = {"AutoSteal","AutoPlace","AutoHatch","AutoSell","AutoSellEgg","StealPlayers",
+                "AutoFavorite","AutoFusePets","AutoEquipBest","AutoClaimOffline","AutoBaseUpgrade",
+                "AutoClaimAlmanac","Noclip","BottingMode","AntiCutscene","AutoRingEvent",
+                "ButterflyAutoCatch","ButterflyAutoTrade","ButterflyAutoCraft","ScrambleBossAuto"}
+            for _, k in ipairs(flags) do CFG[k] = false end
+            callG("__BabisV4EggRuntime", "setEnabled", false)
+            local fn = genv().__BabisV4HubShutdown
+            if type(fn) == "function" then task.delay(0.2, function() pcall(fn) end) end
+            gui:Destroy()
+        end)
 end
 
+-- ============================================================
+-- SETTINGS TAB
+-- ============================================================
 builders["Settings"] = function(page)
-    addToggleButton(page, "Steal Webhook", "Posta embed no Discord quando banca um ovo.", CFG.WebhookEnabled == true, 1, function(v)
-        CFG.WebhookEnabled = v
-    end)
+    addToggleButton(page, "Steal Webhook", "Posta embed no Discord quando banca um ovo.",
+        CFG.WebhookEnabled == true, 1, function(v) CFG.WebhookEnabled = v end)
     addInputCard(page, "Webhook URL", "URL do webhook do Discord.",
         "https://discord.com/api/webhooks/...", CFG.WebhookURL or "", 2, function(v)
             CFG.WebhookURL = tostring(v or "")
@@ -33095,19 +33195,7 @@ builders["Settings"] = function(page)
         end
     end)
     addClickButton(page, "Discord do Babis", "Convite da comunidade (se configurado).",
-        DISCORD_ICON, 6, function()
-            Notify("Babis", "Convite não configurado.")
-        end)
-    addClickButton(page, "Abrir Todos os Painéis", "Egg logs, board, inventário, checker, analyst.",
-        "rbxassetid://7743866903", 7, function()
-            local p = genv().__BabisV4Panels
-            if p and p.openAll then p.openAll() end
-        end)
-    addClickButton(page, "Fechar Todos os Painéis", "Fecha todos os painéis.",
-        "rbxassetid://7743878857", 8, function()
-            local p = genv().__BabisV4Panels
-            if p and p.closeAll then p.closeAll() end
-        end)
+        DISCORD_ICON, 6, function() Notify("Babis", "Convite não configurado.") end)
 end
 
 -- ============================================================
@@ -33422,4 +33510,4 @@ closeBtnHeader.MouseButton1Click:Connect(function() gui:Destroy() end)
 -- Primeira carga
 rebuildTab("Main")
 
-print("[Babis Hub] Interface Halloween carregada.")
+print("[Babis Hub] Interface Halloween carregada (v9 — 9 tabs).")
