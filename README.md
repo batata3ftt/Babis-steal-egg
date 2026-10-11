@@ -31545,9 +31545,9 @@ getgenv().__BabisV4Loops = {
 end
 
 -- ============================================================
--- Babis Hub — Full Standalone (v13)
--- 9 tabs · English · Live Prediction · Live Players · Full Events
--- Paste and run. Creates getgenv().BabisV4Config if missing.
+-- Babis Hub — Full Standalone (v14)
+-- 9 tabs · English · Live Prediction · Live Players · Bulletproof Events
+-- Paste and run.
 -- ============================================================
 
 local Players           = game:GetService("Players")
@@ -31561,14 +31561,13 @@ local LocalPlayer       = Players.LocalPlayer
 
 if not getgenv then getgenv = function() return _G end end
 getgenv().BabisV4Config = getgenv().BabisV4Config or {}
-
 local CFG = getgenv().BabisV4Config
 local DISCORD_LINK = "https://discord.gg/ju39QFTq"
 
 local function callG(name, method, ...)
     local o = getgenv()[name]
     if o and type(o[method]) == "function" then return pcall(o[method], o, ...) end
-    return false, "no runtime"
+    return false
 end
 
 -- ============================================================
@@ -31593,9 +31592,6 @@ local SOUND_ID        = "rbxassetid://5153734608"
 local FONT_MAIN       = Enum.Font.GothamMedium
 local FONT_STRONG     = Enum.Font.GothamBold
 
--- ============================================================
--- Clean old instances
--- ============================================================
 for _, n in ipairs({"BabisUIKitNotif", "BabisHub", "BabisEventsTest"}) do
     local a = PlayerGui:FindFirstChild(n); if a then a:Destroy() end
     if gethui then local b = gethui():FindFirstChild(n); if b then b:Destroy() end end
@@ -31608,10 +31604,8 @@ local notifGui = Instance.new("ScreenGui")
 notifGui.Name = "BabisUIKitNotif"; notifGui.ResetOnSpawn = false; notifGui.IgnoreGuiInset = true
 notifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; notifGui.DisplayOrder = 300
 notifGui.Parent = PlayerGui
-
 local notifSound = Instance.new("Sound")
 notifSound.SoundId = SOUND_ID; notifSound.Volume = 0.35; notifSound.Parent = SoundService
-
 local notifContainer = Instance.new("Frame")
 notifContainer.BackgroundTransparency = 1; notifContainer.Size = UDim2.new(0, 320, 0, 0)
 notifContainer.AutomaticSize = Enum.AutomaticSize.Y; notifContainer.AnchorPoint = Vector2.new(1, 0)
@@ -31627,63 +31621,41 @@ local function Notify(title, message, duration)
     if notifSound.IsPlaying then notifSound:Stop() end
     notifSound.TimePosition = 0; notifSound:Play()
     notifOrder = notifOrder + 1
-
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 76); row.BackgroundTransparency = 1
     row.LayoutOrder = notifOrder; row.Parent = notifContainer
-
     local card = Instance.new("Frame")
     card.Size = UDim2.new(1, 0, 1, 0); card.Position = UDim2.new(1, 380, 0, 0)
     card.BackgroundColor3 = BG_CARD; card.BorderSizePixel = 0
     card.ClipsDescendants = true; card.Parent = row
     local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
     local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1.5; cs.Parent = card
-
     local bar = Instance.new("Frame")
     bar.Size = UDim2.new(0, 5, 1, -22); bar.Position = UDim2.new(0, 9, 0, 11)
     bar.BackgroundColor3 = ACCENT_ORANGE; bar.BorderSizePixel = 0; bar.Parent = card
     local bbc = Instance.new("UICorner"); bbc.CornerRadius = UDim.new(0, 3); bbc.Parent = bar
-
     local iconBg = Instance.new("Frame")
     iconBg.Size = UDim2.new(0, 42, 0, 42); iconBg.Position = UDim2.new(0, 20, 0.5, -21)
     iconBg.BackgroundColor3 = Color3.fromRGB(35,22,14); iconBg.BorderSizePixel = 0; iconBg.Parent = card
     local ibc = Instance.new("UICorner"); ibc.CornerRadius = UDim.new(0, 21); ibc.Parent = iconBg
     local ibs = Instance.new("UIStroke"); ibs.Color = ACCENT_ORANGE; ibs.Thickness = 1.2; ibs.Transparency = 0.4; ibs.Parent = iconBg
-
     local bell = Instance.new("ImageLabel")
     bell.Size = UDim2.new(0, 24, 0, 24); bell.Position = UDim2.new(0.5, -12, 0.5, -12)
     bell.BackgroundTransparency = 1; bell.Image = BELL_ICON; bell.ImageColor3 = Color3.fromRGB(255,190,130)
     bell.ScaleType = Enum.ScaleType.Fit; bell.Parent = iconBg
-
     local t = Instance.new("TextLabel")
     t.BackgroundTransparency = 1; t.Text = title; t.TextColor3 = Color3.fromRGB(245,230,215)
     t.Font = FONT_STRONG; t.TextSize = 15
     t.TextXAlignment = Enum.TextXAlignment.Left; t.TextYAlignment = Enum.TextYAlignment.Top
     t.Size = UDim2.new(1, -90, 0, 22); t.Position = UDim2.new(0, 72, 0, 16); t.Parent = card
-
     local m = Instance.new("TextLabel")
     m.BackgroundTransparency = 1; m.Text = message; m.TextColor3 = Color3.fromRGB(160,140,122)
     m.Font = FONT_MAIN; m.TextSize = 13
     m.TextXAlignment = Enum.TextXAlignment.Left; m.TextYAlignment = Enum.TextYAlignment.Top
     m.TextWrapped = true; m.Size = UDim2.new(1, -90, 0, 34)
     m.Position = UDim2.new(0, 72, 0, 38); m.Parent = card
-
     TweenService:Create(card, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
         {Position = UDim2.new(0, 0, 0, 0)}):Play()
-
-    task.spawn(function()
-        task.wait(0.4)
-        if not bell.Parent then return end
-        bell.Rotation = -12
-        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = 12}):Play(); task.wait(0.11)
-        if not bell.Parent then return end
-        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = -8}):Play(); task.wait(0.11)
-        if not bell.Parent then return end
-        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = 6}):Play(); task.wait(0.11)
-        if not bell.Parent then return end
-        TweenService:Create(bell, TweenInfo.new(0.12), {Rotation = 0}):Play()
-    end)
-
     task.delay(duration, function()
         if not row.Parent then return end
         TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
@@ -31730,9 +31702,7 @@ rect:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncBanner)
 rect:GetPropertyChangedSignal("Rotation"):Connect(syncBanner)
 RunService.RenderStepped:Connect(syncBanner)
 
--- ============================================================
 -- Header
--- ============================================================
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 60); header.BackgroundColor3 = BG_HEADER
 header.BorderSizePixel = 0; header.Parent = rect
@@ -31740,39 +31710,32 @@ local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(0, CORNER_RADIUS
 local hf = Instance.new("Frame")
 hf.Size = UDim2.new(1, 0, 0, CORNER_RADIUS + 2); hf.Position = UDim2.new(0, 0, 1, -(CORNER_RADIUS + 2))
 hf.BackgroundColor3 = BG_HEADER; hf.BorderSizePixel = 0; hf.Parent = header
-
 local shine = Instance.new("Frame")
 shine.Size = UDim2.new(0, 60, 1, 0); shine.Position = UDim2.new(0, -80, 0, 0)
 shine.BackgroundColor3 = ACCENT_GLOW; shine.BackgroundTransparency = 0.88
 shine.BorderSizePixel = 0; shine.Rotation = 12; shine.Parent = header
-
 local hContent = Instance.new("Frame")
 hContent.Size = UDim2.new(1, 0, 1, 0); hContent.BackgroundTransparency = 1; hContent.Parent = header
-
 local dividerH = Instance.new("Frame")
 dividerH.Size = UDim2.new(1, 0, 0, BORDER_THICK); dividerH.Position = UDim2.new(0, 0, 0, 60)
 dividerH.BackgroundColor3 = BORDER_COLOR; dividerH.BackgroundTransparency = 0.15
 dividerH.BorderSizePixel = 0; dividerH.Parent = rect
-
 local logoImg = Instance.new("ImageLabel")
 logoImg.Size = UDim2.new(0, 40, 0, 40); logoImg.Position = UDim2.new(0, 14, 0.5, -20)
 logoImg.BackgroundTransparency = 1; logoImg.Image = LOGO_ICON; logoImg.Parent = hContent
-
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(0, 220, 0, 20); title.Position = UDim2.new(0, 64, 0.5, -20)
 title.BackgroundTransparency = 1; title.Text = "Babis"; title.TextColor3 = ACCENT_ORANGE
 title.TextSize = 18; title.Font = FONT_STRONG; title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = hContent
-
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(0, 260, 0, 18); subtitle.Position = UDim2.new(0, 64, 0.5, 2)
-subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v13"
+subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v14"
 subtitle.TextColor3 = Color3.fromRGB(230, 215, 200); subtitle.TextSize = 14
 subtitle.Font = FONT_MAIN; subtitle.TextXAlignment = Enum.TextXAlignment.Left; subtitle.Parent = hContent
 
 local BTN_SIZE = 30; local SEP_W = 1
 local BOX_W = BTN_SIZE * 3 + SEP_W * 2 + 4; local BOX_H = BTN_SIZE + 8
-
 local btnBox = Instance.new("Frame")
 btnBox.Size = UDim2.new(0, BOX_W, 0, BOX_H); btnBox.Position = UDim2.new(1, -(BOX_W + 14), 0.5, -BOX_H / 2)
 btnBox.BackgroundColor3 = BG_MAIN; btnBox.BorderSizePixel = 0; btnBox.Parent = hContent
@@ -31799,7 +31762,6 @@ end
 local discordBtn     = makeIconBtn(DISCORD_ICON, 1, 22)
 local minimizeBtn    = makeIconBtn("rbxassetid://7734000129", 2, 18)
 local closeBtnHeader = makeIconBtn("rbxassetid://7743878857", 3, 18)
-
 for i = 1, 2 do
     local sep = Instance.new("Frame")
     sep.Size = UDim2.new(0, SEP_W, 0, BTN_SIZE)
@@ -31814,13 +31776,10 @@ dragCatcher.BackgroundTransparency = 1; dragCatcher.Text = ""
 dragCatcher.BorderSizePixel = 0; dragCatcher.AutoButtonColor = false
 dragCatcher.Parent = hContent
 
--- ============================================================
 -- Sidebar
--- ============================================================
 local SIDEBAR_W = 150
 local TAB_H     = 42
 local TAB_GAP   = 4
-
 local sidebar = Instance.new("Frame")
 sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, -60); sidebar.Position = UDim2.new(0, 0, 0, 60)
 sidebar.BackgroundColor3 = BG_HEADER; sidebar.BorderSizePixel = 0; sidebar.Parent = rect
@@ -31842,7 +31801,6 @@ tabsScroll.Size = UDim2.new(1, 0, 1, 0); tabsScroll.Position = UDim2.new(0, 0, 0
 tabsScroll.BackgroundTransparency = 1; tabsScroll.BorderSizePixel = 0
 tabsScroll.ScrollBarThickness = 2; tabsScroll.ScrollBarImageColor3 = BORDER_COLOR
 tabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0); tabsScroll.Parent = sidebar
-
 local tl = Instance.new("UIListLayout")
 tl.Padding = UDim.new(0, TAB_GAP); tl.SortOrder = Enum.SortOrder.LayoutOrder
 tl.HorizontalAlignment = Enum.HorizontalAlignment.Center; tl.Parent = tabsScroll
@@ -32071,8 +32029,8 @@ local function addInput(parent, titleText, descText, placeholder, defaultValue, 
     box.TextColor3 = ACCENT_ORANGE; box.TextSize = 12; box.Font = FONT_STRONG
     box.TextXAlignment = Enum.TextXAlignment.Left
     box.ClearTextOnFocus = false; box.Parent = card
-    local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 8); bc.Parent = box
-    local bs = Instance.new("UIStroke"); bs.Color = Color3.fromRGB(105,72,48); bs.Thickness = 1; bs.Parent = box
+    local bcx = Instance.new("UICorner"); bcx.CornerRadius = UDim.new(0, 8); bcx.Parent = box
+    local bsx = Instance.new("UIStroke"); bsx.Color = Color3.fromRGB(105,72,48); bsx.Thickness = 1; bsx.Parent = box
     local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, 10); pad.Parent = box
     box.FocusLost:Connect(function()
         if callback then pcall(callback, box.Text) end
@@ -32199,9 +32157,7 @@ local function addInfoCard(parent, text, order)
     return wrapper, t
 end
 
--- ============================================================
--- Config helpers
--- ============================================================
+-- Helpers
 local function splitList(text)
     local out, seen = {}, {}
     for v in string.gmatch(tostring(text or ""), "[^,]+") do
@@ -32243,9 +32199,9 @@ builders["Main"] = function(page)
     addToggle(page, "Auto Steal", "Steals eggs matching your filters and banks them.", CFG.AutoSteal == true, 1, function(v)
         CFG.AutoSteal = v
         callG("__BabisV4EggRuntime", "setEnabled", v)
-        if type(genv().__BabisV4SetStealDeclutter) == "function" then pcall(genv().__BabisV4SetStealDeclutter, v) end
+        if type(genv.__BabisV4SetStealDeclutter) == "function" then pcall(genv.__BabisV4SetStealDeclutter, v) end
     end)
-    addSelect(page, "Steal Mode", "High Speed (Fly) is fastest. Low Speed is safer.",
+    addSelect(page, "Steal Mode", "High Speed (Fly) is fastest.",
         {"Low Speed User", "High Speed User", "High Speed User (Fly)"}, 3, 2, function(opt)
             local mode = "Fly"; local aerial = false
             if opt == "Low Speed User" then mode = "Instant" end
@@ -32258,19 +32214,15 @@ builders["Main"] = function(page)
         CFG.TweenSpeedMultiplier = scaled
         callG("__BabisV4EggRuntime", "setSpeed", scaled)
     end)
-    addSlider(page, "Hold Seconds", "1-10.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v)
-        CFG.StealHoldSeconds = v
-    end)
+    addSlider(page, "Hold Seconds", "1-10.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v) CFG.StealHoldSeconds = v end)
     addSelect(page, "Steal Priority", "Which egg to prioritize.",
         {"Rarity", "Highest Value", "Heaviest"}, 1, 5, function(opt)
             CFG.StealPriority = opt
             callG("__BabisV4EggRuntime", "setHighestValueFirst", opt == "Highest Value")
             callG("__BabisV4EggRuntime", "setHeaviestFirst", opt == "Heaviest")
         end)
-    addToggle(page, "Help Friend", "Drops the egg just before the safe line.", CFG.HelpFriend == true, 6, function(v)
-        CFG.HelpFriend = v
-    end)
-    addToggle(page, "Auto Index", "Also steals eggs missing from the Pet Index.", CFG.AutoIndex == true, 7, function(v)
+    addToggle(page, "Help Friend", "Drops the egg just before the safe line.", CFG.HelpFriend == true, 6, function(v) CFG.HelpFriend = v end)
+    addToggle(page, "Auto Index", "Steals eggs missing from the Pet Index.", CFG.AutoIndex == true, 7, function(v)
         CFG.AutoIndex = v
         callG("__BabisV4EggRuntime", "setIndexObjective", v)
     end)
@@ -32739,7 +32691,8 @@ builders["Auto"] = function(page)
     end)
     addButton(page, "Apply Mutation Now", "Run one pass now.", 9, function()
         local l = getgenv().__BabisV4Loops
-        if l and type(l.mutationSweep) == "function" then task.spawn(l.mutationSweep) else Notify("Mutation", "Runtime unavailable") end
+        if l and type(l.mutationSweep) == "function" then task.spawn(l.mutationSweep)
+        else Notify("Mutation", "Runtime unavailable") end
     end)
     addToggle(page, "Auto Sell Pet", "Sells pets by filter.", CFG.AutoSell == true, 10, function(v)
         CFG.AutoSell = v
@@ -32812,177 +32765,188 @@ builders["Auto"] = function(page)
 end
 
 -- ============================================================
--- EVENTS
+-- EVENTS — Bulletproof
 -- ============================================================
 builders["Events"] = function(page)
-    local btf = getgenv().__BabisV4ButterflyRuntime
-    local modes = {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
-    local recipes = {"All Recipes", "For Essence (shortfall only)", "Emerald to Sapphire", "Sapphire to Amethyst", "Amethyst to Radiant"}
-    if btf and type(btf.modeOptions) == "function" then
-        local ok, r = pcall(btf.modeOptions)
-        if ok and type(r) == "table" and #r > 0 then modes = r end
-    end
-    if btf and type(btf.recipeOptions) == "function" then
-        local ok, r = pcall(btf.recipeOptions)
-        if ok and type(r) == "table" and #r > 0 then recipes = r end
-    end
+    local function buildInner()
+        local btf = getgenv().__BabisV4ButterflyRuntime
+        local modes = {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
+        local recipes = {"All Recipes", "For Essence (shortfall only)", "Emerald to Sapphire", "Sapphire to Amethyst", "Amethyst to Radiant"}
+        pcall(function()
+            if btf and type(btf.modeOptions) == "function" then
+                local r = btf.modeOptions()
+                if type(r) == "table" and #r > 0 then modes = r end
+            end
+        end)
+        pcall(function()
+            if btf and type(btf.recipeOptions) == "function" then
+                local r = btf.recipeOptions()
+                if type(r) == "table" and #r > 0 then recipes = r end
+            end
+        end)
 
-    local _, statusText = addInfoCard(page, "Loading event status...", 0)
-    task.spawn(function()
-        while gui.Parent and statusText and statusText.Parent do
-            task.wait(2)
-            pcall(function()
-                local b = getgenv().__BabisV4ButterflyRuntime
-                local scr = getgenv().__BabisV4ScrambleRuntime
-                local tr = getgenv().__BabisV4ScrambleTradeIn
-                local boss = getgenv().__BabisV4ScrambleBoss
-                local snap = b and b.snap or {}
-                local bS = b and tostring(b.status or "Idle") or "Unavailable"
-                local bL = snap.active and "LIVE" or (snap.nextIn and ("in " .. math.floor(snap.nextIn/60) .. "m") or "idle")
-                local bN = snap.net and "Net OK" or "No net"
-                local sS = scr and tostring(scr.status or "Idle") or "-"
-                local tS = tr and tostring(tr.status or "Disabled") or "-"
-                local bB = boss and tostring(boss.status or "Idle") or "-"
-                statusText.Text = string.format(
-                    "Butterfly: %s (%s) · %s\nScramble: %s · Trade-In: %s\nBoss: %s",
-                    bS, bL, bN, sS, tS, bB)
-            end)
-        end
-    end)
+        -- Status
+        local statusFrame = Instance.new("Frame")
+        statusFrame.Size = UDim2.new(1, 0, 0, 96)
+        statusFrame.BackgroundColor3 = BG_CARD
+        statusFrame.BorderSizePixel = 0
+        statusFrame.LayoutOrder = 0
+        statusFrame.Parent = page
+        local stc = Instance.new("UICorner"); stc.CornerRadius = UDim.new(0, 10); stc.Parent = statusFrame
+        local sts = Instance.new("UIStroke"); sts.Color = Color3.fromRGB(105,72,48); sts.Thickness = 1; sts.Parent = statusFrame
+        local statusText = Instance.new("TextLabel")
+        statusText.Size = UDim2.new(1, -24, 1, 0); statusText.Position = UDim2.new(0, 12, 0, 0)
+        statusText.BackgroundTransparency = 1
+        statusText.Text = "Loading event status..."
+        statusText.TextColor3 = Color3.fromRGB(200, 185, 170)
+        statusText.Font = FONT_MAIN; statusText.TextSize = 11
+        statusText.TextXAlignment = Enum.TextXAlignment.Left
+        statusText.TextYAlignment = Enum.TextYAlignment.Center
+        statusText.TextWrapped = true; statusText.Parent = statusFrame
 
-    -- Butterfly
-    addToggle(page, "Butterfly · Auto Claim Net", "Claims the free net from the Enchanted Tree.", CFG.ButterflyAutoNet == true, 1, function(v)
-        CFG.ButterflyAutoNet = v
-    end)
-    addToggle(page, "Butterfly · Auto Catch", "Catches butterflies during every Bloom.", CFG.ButterflyAutoCatch == true, 2, function(v)
-        CFG.ButterflyAutoCatch = v
-    end)
-    addSelect(page, "Butterfly · Catch Mode", "Tween · Stand · Zigzag · Circle.", modes, 1, 3, function(o)
-        if btf and type(btf.setMode) == "function" then pcall(btf.setMode, o) end
-    end)
-    addInput(page, "Butterfly · Tiers", "Golden, Purple, Blue, Green (comma-separated).",
-        "Golden, Purple, Blue, Green", joinList(CFG.ButterflyTiers), 4, function(v)
+        task.spawn(function()
+            while gui.Parent and statusText and statusText.Parent do
+                task.wait(2)
+                pcall(function()
+                    local b = getgenv().__BabisV4ButterflyRuntime
+                    local scr = getgenv().__BabisV4ScrambleRuntime
+                    local tr = getgenv().__BabisV4ScrambleTradeIn
+                    local boss = getgenv().__BabisV4ScrambleBoss
+                    local snap = b and b.snap or {}
+                    local btfS = b and tostring(b.status or "Idle") or "Unavailable"
+                    local btfL = snap.active and "LIVE" or (snap.nextIn and ("in " .. math.floor(snap.nextIn/60) .. "m") or "idle")
+                    local btfN = snap.net and "Net OK" or "No net"
+                    local scrS = scr and tostring(scr.status or "Idle") or "-"
+                    local trS = tr and tostring(tr.status or "Disabled") or "-"
+                    local boS = boss and tostring(boss.status or "Idle") or "-"
+                    statusText.Text = string.format(
+                        "Butterfly: %s (%s) · %s\nScramble: %s · Trade-In: %s\nBoss: %s",
+                        btfS, btfL, btfN, scrS, trS, boS)
+                end)
+            end
+        end)
+
+        addToggle(page, "Butterfly · Auto Claim Net", "Claims the free net.", CFG.ButterflyAutoNet == true, 1, function(v) CFG.ButterflyAutoNet = v end)
+        addToggle(page, "Butterfly · Auto Catch", "Catches during Bloom.", CFG.ButterflyAutoCatch == true, 2, function(v) CFG.ButterflyAutoCatch = v end)
+        addSelect(page, "Butterfly · Catch Mode", "Tween/Stand/Zigzag/Circle.", modes, 1, 3, function(o)
+            if btf and type(btf.setMode) == "function" then pcall(btf.setMode, o) end
+        end)
+        addInput(page, "Butterfly · Tiers", "Comma-separated.", "Golden, Purple, Blue, Green", joinList(CFG.ButterflyTiers), 4, function(v)
             CFG.ButterflyTiers = splitList(v)
             if btf and type(btf.setTiers) == "function" then pcall(btf.setTiers, CFG.ButterflyTiers) end
         end)
-    addToggle(page, "Butterfly · ESP", "Show tier + distance in the Bloom.", CFG.ButterflyEsp == true, 5, function(v)
-        CFG.ButterflyEsp = v
-    end)
-    addToggle(page, "Butterfly · Auto Trade Up", "Trades butterflies at the machine inside the tree.", CFG.ButterflyAutoTrade == true, 6, function(v)
-        CFG.ButterflyAutoTrade = v
-    end)
-    addSelect(page, "Butterfly · Trade Recipe", "Recipe used by Auto Trade Up.", recipes, 1, 7, function(o)
-        if btf and type(btf.setRecipe) == "function" then pcall(btf.setRecipe, o) end
-    end)
-    addToggle(page, "Butterfly · Auto Craft Essence", "Crafts Enchanted Essence when recipe is full.", CFG.ButterflyAutoCraft == true, 8, function(v)
-        CFG.ButterflyAutoCraft = v
-    end)
-    addButton(page, "Butterfly · Claim Net Now", "Runs claimNet once.", 9, function()
-        if btf and type(btf.claimNet) == "function" then
-            task.spawn(function()
-                btf.manual = true
-                local ok, r, reason = pcall(btf.claimNet); btf.manual = false
-                Notify("Butterfly", ok and (r and "Net claimed" or tostring(reason)) or tostring(r))
-            end)
-        else Notify("Butterfly", "Runtime unavailable") end
-    end)
-    addButton(page, "Butterfly · Trade Up Now", "Runs tradeUp once.", 10, function()
-        if btf and type(btf.tradeUp) == "function" then
-            task.spawn(function()
-                btf.manual = true
-                local ok, r, reason = pcall(btf.tradeUp); btf.manual = false
-                Notify("Butterfly", ok and (r and ("Trades: " .. tostring(reason or 0))) or tostring(reason))
-            end)
-        else Notify("Butterfly", "Runtime unavailable") end
-    end)
-    addButton(page, "Butterfly · Craft Essence Now", "Runs craft once.", 11, function()
-        if btf and type(btf.craft) == "function" then
-            task.spawn(function()
-                btf.manual = true
-                local ok, r, reason = pcall(btf.craft); btf.manual = false
-                Notify("Butterfly", ok and (r and ("Crafted: " .. tostring(reason or 0))) or tostring(reason))
-            end)
-        else Notify("Butterfly", "Runtime unavailable") end
-    end)
-    addButton(page, "Butterfly · Show Status", "Show current Bloom status.", 12, function()
-        local b = getgenv().__BabisV4ButterflyRuntime
-        local snap = b and b.snap or {}
-        Notify("Butterfly Bloom",
-            tostring(b and b.status or "Unavailable") .. " | " ..
-            tostring(snap.active and "Live" or "Not live") .. " | " ..
-            tostring(snap.net and "Net owned" or "No net"))
-    end)
-
-    -- Scramble
-    addToggle(page, "Scramble · Auto Buy", "Buys selected shop items with samples.", CFG.ScrambleAutoBuy == true, 20, function(v)
-        CFG.ScrambleAutoBuy = v
-    end)
-    addInput(page, "Scramble · Shop Buy List", "Item labels (comma-separated).", "Item A, Item B",
-        joinList(CFG.ScrambleBuyList), 21, function(v) CFG.ScrambleBuyList = splitList(v) end)
-    addToggle(page, "Scramble · Auto Trade-In", "Sacrifices pets for Dr Scramble.", CFG.ScrambleTradeInTrade == true, 22, function(v)
-        CFG.ScrambleTradeInTrade = v
-    end)
-    addToggle(page, "Scramble · Auto Free Reroll", "Uses a free reroll when missing pets.", CFG.ScrambleTradeInReroll == true, 23, function(v)
-        CFG.ScrambleTradeInReroll = v
-    end)
-    addInput(page, "Scramble · Banner Filter", "Target banners (comma-separated).",
-        "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 24, function(v)
-            CFG.ScrambleTradeInBanners = splitList(v)
+        addToggle(page, "Butterfly · ESP", "Show tier + distance.", CFG.ButterflyEsp == true, 5, function(v) CFG.ButterflyEsp = v end)
+        addToggle(page, "Butterfly · Auto Trade Up", "Trades inside the tree.", CFG.ButterflyAutoTrade == true, 6, function(v) CFG.ButterflyAutoTrade = v end)
+        addSelect(page, "Butterfly · Trade Recipe", "Recipe to use.", recipes, 1, 7, function(o)
+            if btf and type(btf.setRecipe) == "function" then pcall(btf.setRecipe, o) end
         end)
-    addButton(page, "Scramble · Trade-In Once", "Runs tradeOnce once.", 25, function()
-        local t = getgenv().__BabisV4ScrambleTradeIn
-        if t and type(t.tradeOnce) == "function" then
-            local ok, r, reason = pcall(t.tradeOnce)
-            Notify("Scramble", ok and (r and "Trade complete" or tostring(reason)) or tostring(r))
-        else Notify("Scramble", "Runtime unavailable") end
-    end)
-    addButton(page, "Scramble · Use Free Reroll", "Runs reroll once.", 26, function()
-        local t = getgenv().__BabisV4ScrambleTradeIn
-        if t and type(t.reroll) == "function" then
-            local ok, r, reason = pcall(t.reroll)
-            Notify("Scramble", ok and (r and "Recipe rerolled" or tostring(reason)) or tostring(r))
-        else Notify("Scramble", "Runtime unavailable") end
-    end)
-    addButton(page, "Scramble · Open Lab UI", "Opens the in-game trade-in window.", 27, function()
-        pcall(function()
-            require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn")
+        addToggle(page, "Butterfly · Auto Craft Essence", "Crafts when recipe full.", CFG.ButterflyAutoCraft == true, 8, function(v) CFG.ButterflyAutoCraft = v end)
+        addButton(page, "Butterfly · Claim Net Now", "Run claimNet once.", 9, function()
+            if btf and type(btf.claimNet) == "function" then
+                task.spawn(function() btf.manual = true; pcall(btf.claimNet); btf.manual = false end)
+                Notify("Butterfly", "Claimed net")
+            else Notify("Butterfly", "Runtime unavailable") end
         end)
-        Notify("Scramble", "Tried to open lab UI")
-    end)
-    addToggle(page, "Scramble · Auto Boss", "Enter and fight the boss when live.", CFG.ScrambleBossAuto == true, 28, function(v)
-        CFG.ScrambleBossAuto = v
-        local egg = getgenv().__BabisV4EggRuntime
-        if egg and type(egg._reconcileScramblePortal) == "function" then pcall(egg._reconcileScramblePortal, egg) end
-    end)
-    addButton(page, "Scramble · Show Status", "Show shop + trade-in status.", 29, function()
-        local shop = getgenv().__BabisV4ScrambleRuntime
-        local trade = getgenv().__BabisV4ScrambleTradeIn
-        local snap = shop and type(shop.snapshot) == "function" and select(2, pcall(shop.snapshot)) or nil
-        Notify("Scramble",
-            tostring(shop and shop.status or "Unavailable") .. " | " ..
-            tostring(trade and trade.banner or (snap and snap.State and "Event active" or "Not active")))
-    end)
+        addButton(page, "Butterfly · Trade Up Now", "Run tradeUp once.", 10, function()
+            if btf and type(btf.tradeUp) == "function" then
+                task.spawn(function() btf.manual = true; pcall(btf.tradeUp); btf.manual = false end)
+                Notify("Butterfly", "Traded")
+            else Notify("Butterfly", "Runtime unavailable") end
+        end)
+        addButton(page, "Butterfly · Craft Essence Now", "Run craft once.", 11, function()
+            if btf and type(btf.craft) == "function" then
+                task.spawn(function() btf.manual = true; pcall(btf.craft); btf.manual = false end)
+                Notify("Butterfly", "Crafted")
+            else Notify("Butterfly", "Runtime unavailable") end
+        end)
+        addButton(page, "Butterfly · Show Status", "Show current Bloom status.", 12, function()
+            local b = getgenv().__BabisV4ButterflyRuntime
+            local snap = b and b.snap or {}
+            Notify("Butterfly Bloom",
+                tostring(b and b.status or "Unavailable") .. " | " ..
+                tostring(snap.active and "Live" or "Not live") .. " | " ..
+                tostring(snap.net and "Net owned" or "No net"))
+        end)
 
-    -- Capture
-    addToggle(page, "Capture · Auto Steal Capture", "Grabs event egg and holds it in a safe spot.", CFG.AutoStealCapture == true, 30, function(v)
-        CFG.AutoStealCapture = v
-    end)
-    addToggle(page, "Capture · Fly For Capture", "Flies up and holds position after grabbing.", CFG.FlyForCapture == true, 31, function(v)
-        CFG.FlyForCapture = v
-        local mv = getgenv().__BabisV4MovementExtras
-        if mv and type(mv.setFlyForCapture) == "function" then pcall(mv.setFlyForCapture, mv, v) end
-    end)
+        addToggle(page, "Scramble · Auto Buy", "Buys shop items.", CFG.ScrambleAutoBuy == true, 20, function(v) CFG.ScrambleAutoBuy = v end)
+        addInput(page, "Scramble · Shop Buy List", "Item labels.", "Item A, Item B", joinList(CFG.ScrambleBuyList), 21, function(v) CFG.ScrambleBuyList = splitList(v) end)
+        addToggle(page, "Scramble · Auto Trade-In", "Sacrifices pets.", CFG.ScrambleTradeInTrade == true, 22, function(v) CFG.ScrambleTradeInTrade = v end)
+        addToggle(page, "Scramble · Auto Free Reroll", "Uses free reroll.", CFG.ScrambleTradeInReroll == true, 23, function(v) CFG.ScrambleTradeInReroll = v end)
+        addInput(page, "Scramble · Banner Filter", "Banners to target.", "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 24, function(v) CFG.ScrambleTradeInBanners = splitList(v) end)
+        addButton(page, "Scramble · Trade-In Once", "Run tradeOnce once.", 25, function()
+            local t = getgenv().__BabisV4ScrambleTradeIn
+            if t and type(t.tradeOnce) == "function" then
+                local ok, r, reason = pcall(t.tradeOnce)
+                Notify("Scramble", ok and (r and "Trade complete" or tostring(reason)) or tostring(r))
+            else Notify("Scramble", "Runtime unavailable") end
+        end)
+        addButton(page, "Scramble · Use Free Reroll", "Run reroll once.", 26, function()
+            local t = getgenv().__BabisV4ScrambleTradeIn
+            if t and type(t.reroll) == "function" then
+                local ok, r, reason = pcall(t.reroll)
+                Notify("Scramble", ok and (r and "Recipe rerolled" or tostring(reason)) or tostring(r))
+            else Notify("Scramble", "Runtime unavailable") end
+        end)
+        addButton(page, "Scramble · Open Lab UI", "Opens trade-in window.", 27, function()
+            pcall(function()
+                require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn")
+            end)
+            Notify("Scramble", "Tried to open lab UI")
+        end)
+        addToggle(page, "Scramble · Auto Boss", "Fights the boss.", CFG.ScrambleBossAuto == true, 28, function(v)
+            CFG.ScrambleBossAuto = v
+            local egg = getgenv().__BabisV4EggRuntime
+            if egg and type(egg._reconcileScramblePortal) == "function" then pcall(egg._reconcileScramblePortal, egg) end
+        end)
+        addButton(page, "Scramble · Show Status", "Show shop + trade-in status.", 29, function()
+            local shop = getgenv().__BabisV4ScrambleRuntime
+            local trade = getgenv().__BabisV4ScrambleTradeIn
+            local snap = shop and type(shop.snapshot) == "function" and select(2, pcall(shop.snapshot)) or nil
+            Notify("Scramble",
+                tostring(shop and shop.status or "Unavailable") .. " | " ..
+                tostring(trade and trade.banner or (snap and snap.State and "Event active" or "Not active")))
+        end)
 
-    -- Ring
-    addToggle(page, "Ring · Auto Ring Event", "Safe → Forest → Angels & Demons → back.", CFG.AutoRingEvent == true, 40, function(v)
-        CFG.AutoRingEvent = v
-        local l = getgenv().__BabisV4Loops
-        if v and l and type(l.ringEvent) == "function" then l.ringEvent() end
-    end)
+        addToggle(page, "Capture · Auto Steal Capture", "Grabs event egg and holds it in a safe spot.", CFG.AutoStealCapture == true, 30, function(v) CFG.AutoStealCapture = v end)
+        addToggle(page, "Capture · Fly For Capture", "Flies up and holds position after grabbing.", CFG.FlyForCapture == true, 31, function(v)
+            CFG.FlyForCapture = v
+            local mv = getgenv().__BabisV4MovementExtras
+            if mv and type(mv.setFlyForCapture) == "function" then pcall(mv.setFlyForCapture, mv, v) end
+        end)
+
+        addToggle(page, "Ring · Auto Ring Event", "Safe → Forest → Angels & Demons → back.", CFG.AutoRingEvent == true, 40, function(v)
+            CFG.AutoRingEvent = v
+            local l = getgenv().__BabisV4Loops
+            if v and l and type(l.ringEvent) == "function" then l.ringEvent() end
+        end)
+    end
+
+    local ok, err = pcall(buildInner)
+    if not ok then
+        print("[Babis Events] Builder errored: " .. tostring(err))
+        local f = Instance.new("Frame")
+        f.Size = UDim2.new(1, 0, 0, 120)
+        f.BackgroundColor3 = Color3.fromRGB(70, 25, 25)
+        f.BorderSizePixel = 0
+        f.LayoutOrder = 0
+        f.Parent = page
+        local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0, 10); fc.Parent = f
+        local t = Instance.new("TextLabel")
+        t.Size = UDim2.new(1, -24, 1, -24); t.Position = UDim2.new(0, 12, 0, 12)
+        t.BackgroundTransparency = 1
+        t.Text = "Events tab failed to build.\n\n" .. tostring(err)
+        t.TextColor3 = Color3.fromRGB(255, 200, 200)
+        t.Font = FONT_MAIN; t.TextSize = 12
+        t.TextWrapped = true; t.TextXAlignment = Enum.TextXAlignment.Left
+        t.TextYAlignment = Enum.TextYAlignment.Top
+        t.Parent = f
+    else
+        print("[Babis Events] Built OK, children: " .. tostring(#page:GetChildren()))
+    end
 end
 
 -- ============================================================
--- PLAYERS — live list
+-- PLAYERS
 -- ============================================================
 builders["Players"] = function(page)
     local RS = ReplicatedStorage
@@ -33171,7 +33135,7 @@ builders["Admin"] = function(page)
             local mv = getgenv().__BabisV4MovementExtras
             if mv and type(mv.setSpeedMultiplier) == "function" then pcall(mv.setSpeedMultiplier, mv, m) end
         end)
-    addToggle(page, "Anti Hit Guard", "Manual anti-knockback (outside Auto Steal).",
+    addToggle(page, "Anti Hit Guard", "Manual anti-knockback.",
         CFG.AntiHitGuard == true, 6, function(v)
             CFG.AntiHitGuard = v
             callG("__BabisV4AntiHitGuard", "setEnabled", v)
@@ -33411,9 +33375,7 @@ tabButtons["Main"].bar.Size = UDim2.new(0, 3, 0.5, 0)
 tabButtons["Main"].icon.ImageColor3 = TAB_TEXT_ACTIVE
 tabButtons["Main"].label.TextColor3 = TAB_TEXT_ACTIVE
 
--- ============================================================
--- Open animation + drag + minimize
--- ============================================================
+-- Open animation
 task.spawn(function()
     task.wait(0.15)
     TweenService:Create(rect, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -33432,6 +33394,7 @@ task.spawn(function()
     end
 end)
 
+-- Drag
 local dragging = false; local dX, dY, sX, sY
 dragCatcher.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -33451,6 +33414,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+-- Minimize
 local ball, ballRing
 local isMin, isAnim = false, false
 local sBX, sBY = 16, 16
@@ -33592,4 +33556,4 @@ closeBtnHeader.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 rebuildTab("Main")
 
-print("[Babis Hub v13] Loaded — Full standalone, English, 9 tabs.")
+print("[Babis Hub v14] Loaded.")
