@@ -31545,7 +31545,8 @@ getgenv().__BabisV4Loops = {
 end
 
 -- ============================================================
--- Babis Hub — Halloween UI v10 (9 tabs, Prediction integrada)
+-- Babis Hub — Halloween UI v11
+-- 9 tabs · Prediction ao vivo · Players ao vivo · Events completos
 -- Requer o motor Babis rodando (getgenv().__BabisV4*)
 -- ============================================================
 
@@ -31564,6 +31565,8 @@ if not CFG then
     warn("[Babis Hub] BabisV4Config não encontrado. Rode o script principal primeiro.")
     return
 end
+
+local DISCORD_LINK = "https://discord.gg/ju39QFTq"
 
 local function G(name) return getgenv()[name] end
 local function callG(name, method, ...)
@@ -31821,7 +31824,7 @@ title.ZIndex = 5; title.Parent = hContent
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(0, 260, 0, 18); subtitle.Position = UDim2.new(0, 64, 0.5, 2)
-subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v10"
+subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v11"
 subtitle.TextColor3 = Color3.fromRGB(230, 215, 200); subtitle.TextSize = 14
 subtitle.Font = FONT_MAIN; subtitle.TextXAlignment = Enum.TextXAlignment.Left
 subtitle.ZIndex = 5; subtitle.Parent = hContent
@@ -31871,7 +31874,7 @@ dragCatcher.BorderSizePixel = 0; dragCatcher.AutoButtonColor = false
 dragCatcher.ZIndex = 6; dragCatcher.Parent = hContent
 
 -- ============================================================
--- Sidebar
+-- Sidebar / Content
 -- ============================================================
 local SIDEBAR_W = 150
 local TAB_H     = 42
@@ -32466,7 +32469,7 @@ end
 -- MAIN
 -- ============================================================
 builders["Main"] = function(page)
-    addToggleButton(page, "Auto Steal", "Rouba ovos conforme os filtros e traz pro safe.", CFG.AutoSteal == true, 1, function(v)
+    addToggleButton(page, "Auto Steal", "Rouba ovos conforme os filtros.", CFG.AutoSteal == true, 1, function(v)
         CFG.AutoSteal = v
         callG("__BabisV4EggRuntime", "setEnabled", v)
         if type(genv().__BabisV4SetStealDeclutter) == "function" then pcall(genv().__BabisV4SetStealDeclutter, v) end
@@ -32536,7 +32539,7 @@ builders["Main"] = function(page)
 end
 
 -- ============================================================
--- PREDICTION — integrada (Field/Backpack ao vivo)
+-- PREDICTION
 -- ============================================================
 builders["Prediction"] = function(page)
     local RS = ReplicatedStorage
@@ -32546,7 +32549,7 @@ builders["Prediction"] = function(page)
     pcall(function() EggRecords = require(RS.Shared.Util.EggRecords) end)
     pcall(function() EggState = require(RS.Client.EggState) end)
 
-    local P = { mode = "Field", sort = "Value", sortIdx = 1, refreshToken = 0 }
+    local P = { mode = "Field", sort = "Value", sortIdx = 1 }
 
     local function fmtRate(v)
         v = tonumber(v) or 0
@@ -32563,8 +32566,7 @@ builders["Prediction"] = function(page)
     end
     local function getIcon(cat)
         if not (Assets and Assets.Directory) then return nil end
-        local a = Assets.Directory[cat]
-        if not a then return nil end
+        local a = Assets.Directory[cat]; if not a then return nil end
         local function norm(v)
             if type(v) == "string" and v ~= "" then
                 if v:find("rbxassetid") or v:find("rbxthumb") then return v end
@@ -32677,23 +32679,19 @@ builders["Prediction"] = function(page)
     local backBtn, setBackA
     fieldBtn, setFieldA = makeBtn("Field", 90, 1, function()
         P.mode = "Field"; setFieldA(true); setBackA(false)
-        P.refreshToken = P.refreshToken + 1
     end)
     backBtn, setBackA = makeBtn("Backpack", 110, 2, function()
         P.mode = "Backpack"; setFieldA(false); setBackA(true)
-        P.refreshToken = P.refreshToken + 1
     end)
     local sortBtn; sortBtn = makeBtn("Sort: Value", 130, 3, function()
         P.sortIdx = P.sortIdx % #sortValues + 1
         P.sort = sortValues[P.sortIdx]
         sortBtn.Text = "Sort: " .. P.sort
-        P.refreshToken = P.refreshToken + 1
     end)
     makeBtn("Refresh", 96, 4, function()
         pcall(function()
             if EggState and EggState.SyncFieldEggs then EggState.SyncFieldEggs() end
         end)
-        P.refreshToken = P.refreshToken + 1
     end)
     setFieldA(true); setBackA(false)
 
@@ -33052,18 +33050,62 @@ builders["Auto"] = function(page)
 end
 
 -- ============================================================
--- EVENTS
+-- EVENTS — com status ao vivo
 -- ============================================================
 builders["Events"] = function(page)
     local btf = genv().__BabisV4ButterflyRuntime
     local modes = btf and btf.modeOptions and btf.modeOptions() or {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
     local recipes = btf and btf.recipeOptions and btf.recipeOptions() or {"All Recipes", "For Essence (shortfall only)"}
 
-    addToggleButton(page, "Butterfly · Auto Claim Net", "Pega a rede da árvore.",
+    -- STATUS GLOBAL
+    local statusFrame = Instance.new("Frame")
+    statusFrame.Size = UDim2.new(1, 0, 0, 76)
+    statusFrame.BackgroundColor3 = BG_CARD
+    statusFrame.BorderSizePixel = 0
+    statusFrame.LayoutOrder = 0
+    statusFrame.Parent = page
+    local stc = Instance.new("UICorner"); stc.CornerRadius = UDim.new(0, 10); stc.Parent = statusFrame
+    local sts = Instance.new("UIStroke"); sts.Color = Color3.fromRGB(105,72,48); sts.Thickness = 1; sts.Parent = statusFrame
+    local statusText = Instance.new("TextLabel")
+    statusText.Size = UDim2.new(1, -24, 1, 0); statusText.Position = UDim2.new(0, 12, 0, 0)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "Carregando status dos eventos..."
+    statusText.TextColor3 = Color3.fromRGB(200, 185, 170)
+    statusText.Font = FONT_MAIN; statusText.TextSize = 11
+    statusText.TextXAlignment = Enum.TextXAlignment.Left
+    statusText.TextYAlignment = Enum.TextYAlignment.Center
+    statusText.TextWrapped = true; statusText.Parent = statusFrame
+
+    task.spawn(function()
+        while gui.Parent and statusText and statusText.Parent do
+            task.wait(2)
+            if statusText and statusText.Parent then
+                pcall(function()
+                    local btf2 = genv().__BabisV4ButterflyRuntime
+                    local scramble = genv().__BabisV4ScrambleRuntime
+                    local trade = genv().__BabisV4ScrambleTradeIn
+                    local boss = genv().__BabisV4ScrambleBoss
+                    local snap = btf2 and btf2.snap or {}
+                    local btfStatus = btf2 and tostring(btf2.status or "Idle") or "Indisponível"
+                    local btfLive = snap.active and "LIVE" or (snap.nextIn and ("em " .. math.floor(snap.nextIn/60) .. "m") or "idle")
+                    local btfNet = snap.net and "Net OK" or "Sem net"
+                    local scrStatus = scramble and tostring(scramble.status or "Idle") or "—"
+                    local tradeStatus = trade and tostring(trade.status or "Disabled") or "—"
+                    local bossStatus = boss and tostring(boss.status or "Idle") or "—"
+                    statusText.Text = string.format(
+                        "Butterfly: %s (%s) · %s\nScramble: %s · Trade-In: %s\nBoss: %s",
+                        btfStatus, btfLive, btfNet, scrStatus, tradeStatus, bossStatus)
+                end)
+            end
+        end
+    end)
+
+    -- BUTTERFLY
+    addToggleButton(page, "Butterfly · Auto Claim Net", "Pega a rede da árvore encantada.",
         CFG.ButterflyAutoNet == true, 1, function(v) CFG.ButterflyAutoNet = v end)
     addToggleButton(page, "Butterfly · Auto Catch", "Captura durante o Bloom.",
         CFG.ButterflyAutoCatch == true, 2, function(v) CFG.ButterflyAutoCatch = v end)
-    addSelectCard(page, "Butterfly · Catch Mode", "Modo de movimento.",
+    addSelectCard(page, "Butterfly · Catch Mode", "Tween · Stand · Zigzag · Circle.",
         modes, 1, 3, function(o) if btf and btf.setMode then pcall(btf.setMode, o) end end)
     addInputCard(page, "Butterfly · Tiers", "Tiers (vírgula). Vazio = todos.",
         "Golden, Purple, Blue, Green", joinList(CFG.ButterflyTiers), 4, function(v)
@@ -33076,7 +33118,7 @@ builders["Events"] = function(page)
         CFG.ButterflyAutoTrade == true, 6, function(v) CFG.ButterflyAutoTrade = v end)
     addSelectCard(page, "Butterfly · Recipe", "Receita do Auto Trade.",
         recipes, 1, 7, function(o) if btf and btf.setRecipe then pcall(btf.setRecipe, o) end end)
-    addToggleButton(page, "Butterfly · Auto Craft", "Crafta Essence.",
+    addToggleButton(page, "Butterfly · Auto Craft", "Crafta Enchanted Essence.",
         CFG.ButterflyAutoCraft == true, 8, function(v) CFG.ButterflyAutoCraft = v end)
     addClickButton(page, "Butterfly · Claim Net Now", "Uma vez agora.",
         "rbxassetid://7734042071", 9, function()
@@ -33084,7 +33126,7 @@ builders["Events"] = function(page)
                 btf.manual = true
                 local ok, r, reason = pcall(btf.claimNet); btf.manual = false
                 Notify("Butterfly", ok and (r and "Rede coletada" or tostring(reason)) or tostring(r))
-            end) end
+            end) else Notify("Butterfly", "Runtime indisponível") end
         end)
     addClickButton(page, "Butterfly · Trade Now", "Uma vez agora.",
         "rbxassetid://7734051052", 10, function()
@@ -33092,7 +33134,7 @@ builders["Events"] = function(page)
                 btf.manual = true
                 local ok, r, reason = pcall(btf.tradeUp); btf.manual = false
                 Notify("Butterfly", ok and (r and ("Trocas: " .. tostring(reason or 0))) or tostring(reason))
-            end) end
+            end) else Notify("Butterfly", "Runtime indisponível") end
         end)
     addClickButton(page, "Butterfly · Craft Now", "Uma vez agora.",
         "rbxassetid://8997388430", 11, function()
@@ -33100,18 +33142,19 @@ builders["Events"] = function(page)
                 btf.manual = true
                 local ok, r, reason = pcall(btf.craft); btf.manual = false
                 Notify("Butterfly", ok and (r and ("Crafted: " .. tostring(reason or 0))) or tostring(reason))
-            end) end
+            end) else Notify("Butterfly", "Runtime indisponível") end
         end)
 
-    addToggleButton(page, "Scramble · Auto Buy", "Compra itens da lista.",
+    -- SCRAMBLE
+    addToggleButton(page, "Scramble · Auto Buy", "Compra itens da lista com samples.",
         CFG.ScrambleAutoBuy == true, 13, function(v) CFG.ScrambleAutoBuy = v end)
-    addInputCard(page, "Scramble · Buy List", "Labels (vírgula).", "Item A, Item B",
-        joinList(CFG.ScrambleBuyList), 14, function(v) CFG.ScrambleBuyList = splitList(v) end)
-    addToggleButton(page, "Scramble · Auto Trade-In", "Saca pets.",
+    addInputCard(page, "Scramble · Buy List", "Labels da loja (vírgula).",
+        "Item A, Item B", joinList(CFG.ScrambleBuyList), 14, function(v) CFG.ScrambleBuyList = splitList(v) end)
+    addToggleButton(page, "Scramble · Auto Trade-In", "Saca pets para o Dr Scramble.",
         CFG.ScrambleTradeInTrade == true, 15, function(v) CFG.ScrambleTradeInTrade = v end)
-    addToggleButton(page, "Scramble · Auto Free Reroll", "Reroll grátis.",
+    addToggleButton(page, "Scramble · Auto Free Reroll", "Usa reroll grátis.",
         CFG.ScrambleTradeInReroll == true, 16, function(v) CFG.ScrambleTradeInReroll = v end)
-    addInputCard(page, "Scramble · Banner Filter", "Banners (vírgula).",
+    addInputCard(page, "Scramble · Banner Filter", "Banners alvo (vírgula).",
         "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 17, function(v)
             CFG.ScrambleTradeInBanners = splitList(v)
         end)
@@ -33121,7 +33164,7 @@ builders["Events"] = function(page)
             if t and t.tradeOnce then
                 local ok, r, reason = pcall(t.tradeOnce)
                 Notify("Scramble", ok and (r and "Troca feita" or tostring(reason)) or tostring(r))
-            end
+            else Notify("Scramble", "Runtime indisponível") end
         end)
     addClickButton(page, "Scramble · Use Free Reroll", "Um reroll grátis.",
         "rbxassetid://7734051052", 19, function()
@@ -33129,9 +33172,9 @@ builders["Events"] = function(page)
             if t and t.reroll then
                 local ok, r, reason = pcall(t.reroll)
                 Notify("Scramble", ok and (r and "Recipe trocada" or tostring(reason)) or tostring(r))
-            end
+            else Notify("Scramble", "Runtime indisponível") end
         end)
-    addClickButton(page, "Scramble · Open Lab", "Abre UI do jogo.",
+    addClickButton(page, "Scramble · Open Lab", "Abre a UI do Trade-In.",
         "rbxassetid://7743866903", 20, function()
             pcall(function() require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn") end)
         end)
@@ -33141,6 +33184,7 @@ builders["Events"] = function(page)
             callG("__BabisV4EggRuntime", "_reconcileScramblePortal")
         end)
 
+    -- CAPTURE
     addToggleButton(page, "Capture · Auto Steal Capture", "Pega e segura o ovo do evento.",
         CFG.AutoStealCapture == true, 23, function(v) CFG.AutoStealCapture = v end)
     addToggleButton(page, "Capture · Fly For Capture", "Sobe e fica parado.",
@@ -33149,7 +33193,8 @@ builders["Events"] = function(page)
             callG("__BabisV4MovementExtras", "setFlyForCapture", v)
         end)
 
-    addToggleButton(page, "Ring · Auto Ring Event", "Rota automática.",
+    -- RING
+    addToggleButton(page, "Ring · Auto Ring Event", "Rota automática do evento.",
         CFG.AutoRingEvent == true, 25, function(v)
             CFG.AutoRingEvent = v
             local l = genv().__BabisV4Loops
@@ -33158,56 +33203,183 @@ builders["Events"] = function(page)
 end
 
 -- ============================================================
--- PLAYERS
+-- PLAYERS — lista ao vivo
 -- ============================================================
 builders["Players"] = function(page)
-    local ps = genv().__BabisV4PlayerSteal
-    addToggleButton(page, "Auto Steal From Players", "Persegue e rouba de outros.",
+    local RS = ReplicatedStorage
+    local EggState, Assets
+    pcall(function() EggState = require(RS.Client.EggState) end)
+    pcall(function() Assets = require(RS.Data.Assets) end)
+
+    local headerCard = Instance.new("Frame")
+    headerCard.Size = UDim2.new(1, 0, 0, 46)
+    headerCard.BackgroundColor3 = BG_CARD
+    headerCard.BorderSizePixel = 0
+    headerCard.LayoutOrder = 0
+    headerCard.Parent = page
+    local hcc = Instance.new("UICorner"); hcc.CornerRadius = UDim.new(0, 10); hcc.Parent = headerCard
+    local hcs = Instance.new("UIStroke"); hcs.Color = Color3.fromRGB(105,72,48); hcs.Thickness = 1; hcs.Parent = headerCard
+    local headerLbl = Instance.new("TextLabel")
+    headerLbl.Size = UDim2.new(1, -28, 1, 0); headerLbl.Position = UDim2.new(0, 14, 0, 0)
+    headerLbl.BackgroundTransparency = 1
+    headerLbl.Text = "Lendo jogadores..."
+    headerLbl.TextColor3 = Color3.fromRGB(200, 185, 170)
+    headerLbl.Font = FONT_MAIN; headerLbl.TextSize = 13
+    headerLbl.TextXAlignment = Enum.TextXAlignment.Left
+    headerLbl.TextYAlignment = Enum.TextYAlignment.Center
+    headerLbl.Parent = headerCard
+
+    addToggleButton(page, "Auto Steal From Players", "Persegue e rouba ovos de outros.",
         CFG.StealPlayers == true, 1, function(v)
             CFG.StealPlayers = v
             callG("__BabisV4PlayerSteal", "setEnabled", v)
         end)
-    addInputCard(page, "Target Rarities", "Raridades (vírgula).", "Mythic, Secret",
-        joinList(CFG.StealPlayerRarities), 2, function(v) CFG.StealPlayerRarities = splitList(v) end)
+    addInputCard(page, "Target Rarities", "Raridades (vírgula). Vazio = usa filtro do Main.",
+        "Mythic, Secret", joinList(CFG.StealPlayerRarities), 2, function(v)
+            CFG.StealPlayerRarities = splitList(v)
+        end)
     addInputCard(page, "Min Value", "$/s mínimo. Aceita k/m/b.", "500k", "", 3, function(v)
         CFG.StealPlayerMinValue = parseMoney(v)
     end)
-    addClickButton(page, "Atualizar Lista", "Recarrega a lista.", "rbxassetid://7734051052", 4, function()
-        if builders["Players"] then
-            local p = pages["Players"]
-            for _, ch in ipairs(p:GetChildren()) do
-                if not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then ch:Destroy() end
+
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, 0, 0, 0)
+    holder.AutomaticSize = Enum.AutomaticSize.Y
+    holder.BackgroundTransparency = 1
+    holder.LayoutOrder = 4
+    holder.Parent = page
+    local hl = Instance.new("UIListLayout")
+    hl.Padding = UDim.new(0, 6); hl.SortOrder = Enum.SortOrder.LayoutOrder; hl.Parent = holder
+
+    local function refreshList()
+        if not holder or not holder.Parent then return end
+        for _, c in ipairs(holder:GetChildren()) do
+            if not c:IsA("UIListLayout") then c:Destroy() end
+        end
+
+        local carrierByUid = {}
+        if EggState then
+            local ok, data = pcall(EggState.ReadFieldEggs)
+            if ok and data and data.Records then
+                for _, rec in pairs(data.Records) do
+                    if rec.State == "Carried" and rec.CarrierUserId then
+                        carrierByUid[rec.CarrierUserId] = rec
+                    end
+                end
             end
-            builders["Players"](p)
+        end
+
+        local others = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then others[#others+1] = plr end
+        end
+        headerLbl.Text = string.format("Servidor: você + %d outros", #others)
+
+        if #others == 0 then
+            local empty = Instance.new("TextLabel")
+            empty.Size = UDim2.new(1, 0, 0, 60)
+            empty.BackgroundColor3 = BG_CARD; empty.BorderSizePixel = 0
+            empty.Text = "Nenhum outro jogador neste servidor."
+            empty.TextColor3 = Color3.fromRGB(140, 125, 110)
+            empty.Font = FONT_MAIN; empty.TextSize = 13
+            empty.Parent = holder
+            local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = empty
+            return
+        end
+
+        for _, plr in ipairs(others) do
+            local rec = carrierByUid[plr.UserId]
+            local carrying = rec ~= nil
+            local eggName = "—"
+            local rarityName = ""
+            local rarityColor = ACCENT_ORANGE
+            if carrying then
+                local a = Assets and Assets.Directory and Assets.Directory[rec.AssetCategory]
+                eggName = a and (a.DisplayName or a._id) or rec.AssetCategory or "?"
+                if a and a.Rarity then
+                    rarityName = a.Rarity.DisplayName or a.Rarity._id or ""
+                    rarityColor = a.Rarity.Color or ACCENT_ORANGE
+                end
+            end
+
+            local row = Instance.new("Frame")
+            row.Size = UDim2.new(1, 0, 0, 60)
+            row.BackgroundColor3 = BG_CARD; row.BorderSizePixel = 0
+            row.Parent = holder
+            local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10); rc.Parent = row
+            local rs = Instance.new("UIStroke")
+            rs.Color = carrying and rarityColor or Color3.fromRGB(105,72,48)
+            rs.Thickness = 1; rs.Parent = row
+
+            local accent = Instance.new("Frame")
+            accent.Size = UDim2.new(0, 3, 1, -16); accent.Position = UDim2.new(0, 0, 0, 8)
+            accent.BackgroundColor3 = carrying and rarityColor or Color3.fromRGB(80, 60, 45)
+            accent.BorderSizePixel = 0; accent.Parent = row
+            local ac = Instance.new("UICorner"); ac.CornerRadius = UDim.new(0, 2); ac.Parent = accent
+
+            local name = Instance.new("TextLabel")
+            name.Size = UDim2.new(0.55, -110, 0, 20); name.Position = UDim2.new(0, 14, 0, 10)
+            name.BackgroundTransparency = 1
+            name.Text = tostring(plr.DisplayName) .. "  (@" .. plr.Name .. ")"
+            name.TextColor3 = Color3.fromRGB(245, 230, 215); name.Font = FONT_STRONG
+            name.TextSize = 14; name.TextXAlignment = Enum.TextXAlignment.Left
+            name.TextTruncate = Enum.TextTruncate.AtEnd; name.Parent = row
+
+            local st = Instance.new("TextLabel")
+            st.Size = UDim2.new(0.55, -110, 0, 18); st.Position = UDim2.new(0, 14, 0, 32)
+            st.BackgroundTransparency = 1
+            if carrying then
+                st.Text = string.format("Carregando: %s  ·  %s", eggName, rarityName)
+                st.TextColor3 = rarityColor
+            else
+                st.Text = "Sem ovo"
+                st.TextColor3 = Color3.fromRGB(140, 125, 110)
+            end
+            st.Font = FONT_MAIN; st.TextSize = 11; st.TextXAlignment = Enum.TextXAlignment.Left
+            st.TextTruncate = Enum.TextTruncate.AtEnd; st.Parent = row
+
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0, 100, 0, 34); btn.Position = UDim2.new(1, -114, 0.5, -17)
+            btn.BackgroundColor3 = carrying and ACCENT_ORANGE or Color3.fromRGB(35, 22, 14)
+            btn.Text = carrying and "Roubar" or "—"
+            btn.TextColor3 = carrying and Color3.fromRGB(30, 15, 5) or Color3.fromRGB(120, 105, 90)
+            btn.Font = FONT_STRONG; btn.TextSize = 12
+            btn.AutoButtonColor = false; btn.Parent = row
+            local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 8); bc.Parent = btn
+            local bs = Instance.new("UIStroke")
+            bs.Color = carrying and ACCENT_GLOW or Color3.fromRGB(105,72,48)
+            bs.Thickness = 1; bs.Transparency = 0.3; bs.Parent = btn
+
+            if carrying then
+                btn.MouseEnter:Connect(function()
+                    TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_GLOW}):Play()
+                end)
+                btn.MouseLeave:Connect(function()
+                    TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_ORANGE}):Play()
+                end)
+                btn.MouseButton1Click:Connect(function()
+                    local cur = genv().__BabisV4PlayerSteal
+                    if cur and cur.strike then
+                        local ok = pcall(cur.strike, cur, plr)
+                        Notify("Player Steal", ok and ("Perseguindo " .. plr.Name .. " por " .. eggName) or "Falhou")
+                    else
+                        Notify("Player Steal", "Runtime de Player Steal indisponível")
+                    end
+                end)
+            end
+        end
+    end
+
+    addClickButton(page, "Atualizar Lista", "Recarrega a lista de jogadores.",
+        "rbxassetid://7734051052", 5, refreshList)
+    refreshList()
+
+    task.spawn(function()
+        while gui.Parent and holder and holder.Parent do
+            task.wait(4)
+            if holder and holder.Parent then pcall(refreshList) end
         end
     end)
-    if ps and ps.listEntries then
-        local ok, entries = pcall(ps.listEntries, ps)
-        if ok and type(entries) == "table" then
-            local order = 5
-            for _, entry in ipairs(entries) do
-                addClickButton(page, "Steal: " .. tostring(entry.name or "?"),
-                    tostring(entry.statusSub or ""):gsub("<[^>]+>", "") .. " | " .. tostring(entry.status or ""),
-                    "rbxassetid://7743872758", order, function()
-                        if entry.onClick then pcall(entry.onClick, entry, function(msg)
-                            Notify("Player Steal", tostring(msg or "OK"))
-                        end) end
-                    end)
-                order = order + 1
-            end
-            addClickButton(page, "Limpar Histórico", "Zera o histórico.",
-                "rbxassetid://7743873871", order, function()
-                    callG("__BabisV4PlayerSteal", "clearHistory")
-                    Notify("Player Steal", "Histórico limpo")
-                end)
-        else
-            addClickButton(page, "Lista indisponível", "Runtime não respondeu.",
-                "rbxassetid://7733658504", 5, function() end)
-        end
-    else
-        addClickButton(page, "Indisponível", "Runtime ausente.",
-            "rbxassetid://7733658504", 5, function() end)
-    end
 end
 
 -- ============================================================
@@ -33349,8 +33521,17 @@ builders["Settings"] = function(page)
             Notify("Webhook", "Runtime indisponível")
         end
     end)
-    addClickButton(page, "Discord do Babis", "Convite da comunidade.",
-        DISCORD_ICON, 6, function() Notify("Babis", "Convite não configurado.") end)
+    addClickButton(page, "Discord do Babis", "Entrar no servidor da comunidade.",
+        DISCORD_ICON, 6, function()
+            pcall(function() if setclipboard then setclipboard(DISCORD_LINK) end end)
+            pcall(function()
+                local GuiService = game:GetService("GuiService")
+                if GuiService and GuiService.OpenBrowserWindow then
+                    GuiService:OpenBrowserWindow(DISCORD_LINK)
+                end
+            end)
+            Notify("Discord", "Link copiado: ju39QFTq")
+        end)
 end
 
 -- ============================================================
@@ -33490,7 +33671,6 @@ task.spawn(function()
     end
 end)
 
--- Drag
 local dragging = false; local dX, dY, sX, sY
 dragCatcher.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -33510,7 +33690,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Minimize / ball
 local ball, ballRing
 local isMin, isAnim = false, false
 local sBX, sBY = 16, 16
@@ -33640,10 +33819,17 @@ end
 
 minimizeBtn.MouseButton1Click:Connect(minimize)
 discordBtn.MouseButton1Click:Connect(function()
-    Notify("Babis", "Convite da comunidade não configurado.")
+    pcall(function() if setclipboard then setclipboard(DISCORD_LINK) end end)
+    pcall(function()
+        local GuiService = game:GetService("GuiService")
+        if GuiService and GuiService.OpenBrowserWindow then
+            GuiService:OpenBrowserWindow(DISCORD_LINK)
+        end
+    end)
+    Notify("Discord", "Link copiado: ju39QFTq")
 end)
 closeBtnHeader.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 rebuildTab("Main")
 
-print("[Babis Hub v10] Carregado — 9 tabs, Prediction integrada.")
+print("[Babis Hub v11] Carregado — 9 tabs, Prediction e Players ao vivo, Discord configurado.")
