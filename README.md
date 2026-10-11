@@ -31545,181 +31545,31 @@ getgenv().__BabisV4Loops = {
 end
 
 -- ============================================================
--- Babis Hub — Halloween UI v12 (English, Full Events)
--- 9 tabs · Prediction live · Players live · Events complete
--- Requires the Babis engine running (getgenv().__BabisV4*)
+-- Babis Hub — Full Standalone (v13)
+-- 9 tabs · English · Live Prediction · Live Players · Full Events
+-- Paste and run. Creates getgenv().BabisV4Config if missing.
 -- ============================================================
 
 local Players           = game:GetService("Players")
-local UserInputService  = game:GetService("UserInputService")
 local TweenService      = game:GetService("TweenService")
-local SoundService      = game:GetService("SoundService")
+local UserInputService  = game:GetService("UserInputService")
 local RunService        = game:GetService("RunService")
-local HttpService       = game:GetService("HttpService")
+local SoundService      = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui         = Players.LocalPlayer:WaitForChild("PlayerGui")
 local LocalPlayer       = Players.LocalPlayer
-local PlayerGui         = LocalPlayer:WaitForChild("PlayerGui")
 
-local CFG = getgenv().BabisV4Config or _G.BabisV4Config
-if not CFG then
-    warn("[Babis Hub] BabisV4Config not found. Run the main script first.")
-    return
-end
+if not getgenv then getgenv = function() return _G end end
+getgenv().BabisV4Config = getgenv().BabisV4Config or {}
 
+local CFG = getgenv().BabisV4Config
 local DISCORD_LINK = "https://discord.gg/ju39QFTq"
 
-local function G(name) return getgenv()[name] end
 local function callG(name, method, ...)
-    local o = G(name)
+    local o = getgenv()[name]
     if o and type(o[method]) == "function" then return pcall(o[method], o, ...) end
-    return false
+    return false, "no runtime"
 end
-
--- ============================================================
--- Notifier
--- ============================================================
-local uiParent = (gethui and gethui()) or PlayerGui
-for _, n in ipairs({"BabisUIKitNotif", "BabisHub"}) do
-    local a = uiParent:FindFirstChild(n); if a then a:Destroy() end
-    local b = PlayerGui:FindFirstChild(n); if b then b:Destroy() end
-end
-
-local NC = {
-    panel = Color3.fromRGB(22, 13, 8),
-    panelEdge = Color3.fromRGB(105, 72, 48),
-    bar = Color3.fromRGB(255, 122, 26),
-    barGlow = Color3.fromRGB(255, 170, 90),
-    iconBg = Color3.fromRGB(35, 22, 14),
-    icon = Color3.fromRGB(255, 190, 130),
-    title = Color3.fromRGB(245, 230, 215),
-    msg = Color3.fromRGB(160, 140, 122),
-}
-local SOUND_ID  = "rbxassetid://5153734608"
-local SOUND_VOL = 0.4
-local BELL_ICON = "rbxassetid://7072706001"
-
-local function nCorner(p, r)
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r); c.Parent = p; return c
-end
-local function nStroke(p, col, th, tr)
-    local s = Instance.new("UIStroke"); s.Color = col; s.Thickness = th or 1
-    s.Transparency = tr or 0; s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; s.Parent = p; return s
-end
-local function nTween(o, p, d, st, dr)
-    local t = TweenService:Create(o, TweenInfo.new(d or 0.2, st or Enum.EasingStyle.Quint, dr or Enum.EasingDirection.Out), p)
-    t:Play(); return t
-end
-
-local function createNotifier()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "BabisUIKitNotif"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.DisplayOrder = 300
-    gui.Parent = uiParent
-    local sound = Instance.new("Sound")
-    sound.SoundId = SOUND_ID; sound.Volume = SOUND_VOL; sound.Parent = SoundService
-    local container = Instance.new("Frame")
-    container.BackgroundTransparency = 1; container.Size = UDim2.new(0, 320, 0, 0)
-    container.AutomaticSize = Enum.AutomaticSize.Y; container.AnchorPoint = Vector2.new(1, 0)
-    container.Position = UDim2.new(1, -20, 0, 20); container.Parent = gui
-    local layout = Instance.new("UIListLayout")
-    layout.FillDirection = Enum.FillDirection.Vertical; layout.Padding = UDim.new(0, 10)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.VerticalAlignment = Enum.VerticalAlignment.Top
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right; layout.Parent = container
-    local order = 0
-    local function dismiss(row)
-        if not row or not row.Parent or row:GetAttribute("Dismissing") then return end
-        row:SetAttribute("Dismissing", true)
-        local card = row:FindFirstChild("Card")
-        if card then
-            nTween(card, {Position = UDim2.new(1, 420, 0, 0), BackgroundTransparency = 0.7}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-            for _, d in ipairs(card:GetDescendants()) do
-                if d:IsA("TextLabel") then nTween(d, {TextTransparency = 1}, 0.28)
-                elseif d:IsA("ImageLabel") then nTween(d, {ImageTransparency = 1}, 0.28)
-                elseif d:IsA("Frame") then nTween(d, {BackgroundTransparency = 1}, 0.28)
-                elseif d:IsA("UIStroke") then nTween(d, {Transparency = 1}, 0.28) end
-            end
-        end
-        nTween(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-        task.delay(0.38, function() if row and row.Parent then row:Destroy() end end)
-    end
-    return function(title, message, duration)
-        title = title or "Notification"; message = message or ""; duration = duration or 2.0
-        if sound.IsPlaying then sound:Stop() end
-        sound.TimePosition = 0; sound:Play()
-        order = order + 1
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 76); row.BackgroundTransparency = 1
-        row.LayoutOrder = order; row.Parent = container
-        local card = Instance.new("Frame")
-        card.Name = "Card"; card.Size = UDim2.new(1, 0, 1, 0)
-        card.Position = UDim2.new(1, 380, 0, 0); card.BackgroundColor3 = NC.panel
-        card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = row
-        nCorner(card, 12); nStroke(card, NC.panelEdge, 1.5, 0)
-        local shimmer = Instance.new("Frame")
-        shimmer.Size = UDim2.new(0, 80, 1, 0); shimmer.Position = UDim2.new(0, -100, 0, 0)
-        shimmer.BackgroundColor3 = NC.barGlow; shimmer.BackgroundTransparency = 0.88
-        shimmer.BorderSizePixel = 0; shimmer.Rotation = 12; shimmer.Parent = card
-        local sg = Instance.new("UIGradient")
-        sg.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),
-            NumberSequenceKeypoint.new(0.5, 0),
-            NumberSequenceKeypoint.new(1, 1),
-        })
-        sg.Parent = shimmer
-        local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(0, 5, 1, -22); bar.Position = UDim2.new(0, 9, 0, 11)
-        bar.BackgroundColor3 = NC.bar; bar.BorderSizePixel = 0; bar.Parent = card
-        nCorner(bar, 3)
-        local halo = Instance.new("Frame")
-        halo.Size = UDim2.new(0, 50, 0, 50); halo.Position = UDim2.new(0, 16, 0.5, -25)
-        halo.BackgroundColor3 = NC.bar; halo.BackgroundTransparency = 0.82
-        halo.BorderSizePixel = 0; halo.Parent = card; nCorner(halo, 25)
-        local iconBg = Instance.new("Frame")
-        iconBg.Size = UDim2.new(0, 42, 0, 42); iconBg.Position = UDim2.new(0, 20, 0.5, -21)
-        iconBg.BackgroundColor3 = NC.iconBg; iconBg.BorderSizePixel = 0; iconBg.Parent = card
-        nCorner(iconBg, 21); nStroke(iconBg, NC.bar, 1.2, 0.4)
-        local bell = Instance.new("ImageLabel")
-        bell.Size = UDim2.new(0, 28, 0, 28); bell.Position = UDim2.new(0.5, -14, 0.5, -14)
-        bell.BackgroundTransparency = 1; bell.Image = BELL_ICON; bell.ImageColor3 = NC.icon
-        bell.ScaleType = Enum.ScaleType.Fit; bell.Parent = iconBg
-        local titleLbl = Instance.new("TextLabel")
-        titleLbl.BackgroundTransparency = 1; titleLbl.Text = title; titleLbl.TextColor3 = NC.title
-        titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 16
-        titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.TextYAlignment = Enum.TextYAlignment.Top
-        titleLbl.Size = UDim2.new(1, -90, 0, 22); titleLbl.Position = UDim2.new(0, 72, 0, 16)
-        titleLbl.Parent = card
-        local msgLbl = Instance.new("TextLabel")
-        msgLbl.BackgroundTransparency = 1; msgLbl.Text = message; msgLbl.TextColor3 = NC.msg
-        msgLbl.Font = Enum.Font.Gotham; msgLbl.TextSize = 14
-        msgLbl.TextXAlignment = Enum.TextXAlignment.Left; msgLbl.TextYAlignment = Enum.TextYAlignment.Top
-        msgLbl.TextWrapped = true; msgLbl.Size = UDim2.new(1, -90, 0, 34)
-        msgLbl.Position = UDim2.new(0, 72, 0, 38); msgLbl.Parent = card
-        nTween(card, {Position = UDim2.new(0, 0, 0, 0)}, 0.35)
-        task.delay(0.15, function()
-            nTween(shimmer, {Position = UDim2.new(1, 20, 0, 0)}, 0.9, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-        end)
-        task.delay(0.35, function()
-            if not halo.Parent then return end
-            nTween(halo, {BackgroundTransparency = 0.65, Size = UDim2.new(0, 54, 0, 54), Position = UDim2.new(0, 14, 0.5, -27)}, 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-        end)
-        task.spawn(function()
-            task.wait(0.4)
-            if not bell.Parent then return end
-            bell.Rotation = -12
-            nTween(bell, {Rotation = 12}, 0.10); task.wait(0.11)
-            if not bell.Parent then return end
-            nTween(bell, {Rotation = -8}, 0.10); task.wait(0.11)
-            if not bell.Parent then return end
-            nTween(bell, {Rotation = 6}, 0.10); task.wait(0.11)
-            if not bell.Parent then return end
-            nTween(bell, {Rotation = 0}, 0.12)
-        end)
-        task.spawn(function() task.wait(duration); dismiss(row) end)
-    end
-end
-
-_G.BabisNotify = createNotifier()
-local Notify = _G.BabisNotify
 
 -- ============================================================
 -- Palette
@@ -31738,8 +31588,112 @@ local GREEN_VALUE     = Color3.fromRGB(126, 224, 151)
 local DISCORD_ICON    = "rbxassetid://100770414662869"
 local LOGO_ICON       = "rbxassetid://118982441499260"
 local HALLOWEEN_ICON  = "rbxassetid://115612975329709"
+local BELL_ICON       = "rbxassetid://7072706001"
+local SOUND_ID        = "rbxassetid://5153734608"
 local FONT_MAIN       = Enum.Font.GothamMedium
 local FONT_STRONG     = Enum.Font.GothamBold
+
+-- ============================================================
+-- Clean old instances
+-- ============================================================
+for _, n in ipairs({"BabisUIKitNotif", "BabisHub", "BabisEventsTest"}) do
+    local a = PlayerGui:FindFirstChild(n); if a then a:Destroy() end
+    if gethui then local b = gethui():FindFirstChild(n); if b then b:Destroy() end end
+end
+
+-- ============================================================
+-- Notifier
+-- ============================================================
+local notifGui = Instance.new("ScreenGui")
+notifGui.Name = "BabisUIKitNotif"; notifGui.ResetOnSpawn = false; notifGui.IgnoreGuiInset = true
+notifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; notifGui.DisplayOrder = 300
+notifGui.Parent = PlayerGui
+
+local notifSound = Instance.new("Sound")
+notifSound.SoundId = SOUND_ID; notifSound.Volume = 0.35; notifSound.Parent = SoundService
+
+local notifContainer = Instance.new("Frame")
+notifContainer.BackgroundTransparency = 1; notifContainer.Size = UDim2.new(0, 320, 0, 0)
+notifContainer.AutomaticSize = Enum.AutomaticSize.Y; notifContainer.AnchorPoint = Vector2.new(1, 0)
+notifContainer.Position = UDim2.new(1, -20, 0, 20); notifContainer.Parent = notifGui
+local notifLayout = Instance.new("UIListLayout")
+notifLayout.FillDirection = Enum.FillDirection.Vertical; notifLayout.Padding = UDim.new(0, 10)
+notifLayout.SortOrder = Enum.SortOrder.LayoutOrder; notifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+notifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right; notifLayout.Parent = notifContainer
+
+local notifOrder = 0
+local function Notify(title, message, duration)
+    title = tostring(title or "Notification"); message = tostring(message or ""); duration = tonumber(duration) or 2.0
+    if notifSound.IsPlaying then notifSound:Stop() end
+    notifSound.TimePosition = 0; notifSound:Play()
+    notifOrder = notifOrder + 1
+
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 76); row.BackgroundTransparency = 1
+    row.LayoutOrder = notifOrder; row.Parent = notifContainer
+
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 1, 0); card.Position = UDim2.new(1, 380, 0, 0)
+    card.BackgroundColor3 = BG_CARD; card.BorderSizePixel = 0
+    card.ClipsDescendants = true; card.Parent = row
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1.5; cs.Parent = card
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(0, 5, 1, -22); bar.Position = UDim2.new(0, 9, 0, 11)
+    bar.BackgroundColor3 = ACCENT_ORANGE; bar.BorderSizePixel = 0; bar.Parent = card
+    local bbc = Instance.new("UICorner"); bbc.CornerRadius = UDim.new(0, 3); bbc.Parent = bar
+
+    local iconBg = Instance.new("Frame")
+    iconBg.Size = UDim2.new(0, 42, 0, 42); iconBg.Position = UDim2.new(0, 20, 0.5, -21)
+    iconBg.BackgroundColor3 = Color3.fromRGB(35,22,14); iconBg.BorderSizePixel = 0; iconBg.Parent = card
+    local ibc = Instance.new("UICorner"); ibc.CornerRadius = UDim.new(0, 21); ibc.Parent = iconBg
+    local ibs = Instance.new("UIStroke"); ibs.Color = ACCENT_ORANGE; ibs.Thickness = 1.2; ibs.Transparency = 0.4; ibs.Parent = iconBg
+
+    local bell = Instance.new("ImageLabel")
+    bell.Size = UDim2.new(0, 24, 0, 24); bell.Position = UDim2.new(0.5, -12, 0.5, -12)
+    bell.BackgroundTransparency = 1; bell.Image = BELL_ICON; bell.ImageColor3 = Color3.fromRGB(255,190,130)
+    bell.ScaleType = Enum.ScaleType.Fit; bell.Parent = iconBg
+
+    local t = Instance.new("TextLabel")
+    t.BackgroundTransparency = 1; t.Text = title; t.TextColor3 = Color3.fromRGB(245,230,215)
+    t.Font = FONT_STRONG; t.TextSize = 15
+    t.TextXAlignment = Enum.TextXAlignment.Left; t.TextYAlignment = Enum.TextYAlignment.Top
+    t.Size = UDim2.new(1, -90, 0, 22); t.Position = UDim2.new(0, 72, 0, 16); t.Parent = card
+
+    local m = Instance.new("TextLabel")
+    m.BackgroundTransparency = 1; m.Text = message; m.TextColor3 = Color3.fromRGB(160,140,122)
+    m.Font = FONT_MAIN; m.TextSize = 13
+    m.TextXAlignment = Enum.TextXAlignment.Left; m.TextYAlignment = Enum.TextYAlignment.Top
+    m.TextWrapped = true; m.Size = UDim2.new(1, -90, 0, 34)
+    m.Position = UDim2.new(0, 72, 0, 38); m.Parent = card
+
+    TweenService:Create(card, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        {Position = UDim2.new(0, 0, 0, 0)}):Play()
+
+    task.spawn(function()
+        task.wait(0.4)
+        if not bell.Parent then return end
+        bell.Rotation = -12
+        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = 12}):Play(); task.wait(0.11)
+        if not bell.Parent then return end
+        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = -8}):Play(); task.wait(0.11)
+        if not bell.Parent then return end
+        TweenService:Create(bell, TweenInfo.new(0.10), {Rotation = 6}):Play(); task.wait(0.11)
+        if not bell.Parent then return end
+        TweenService:Create(bell, TweenInfo.new(0.12), {Rotation = 0}):Play()
+    end)
+
+    task.delay(duration, function()
+        if not row.Parent then return end
+        TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+            {Position = UDim2.new(1, 420, 0, 0), BackgroundTransparency = 0.7}):Play()
+        TweenService:Create(row, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+            {Size = UDim2.new(1, 0, 0, 0)}):Play()
+        task.delay(0.35, function() if row.Parent then row:Destroy() end end)
+    end)
+end
+_G.BabisNotify = Notify
 
 -- ============================================================
 -- Window
@@ -31748,33 +31702,27 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "BabisHub"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = PlayerGui
 
-local WINDOW_SIZE = UDim2.new(0.562, 0, 0.864, 0)
+local WINDOW_SIZE = UDim2.new(0.60, 0, 0.86, 0)
 local BALL_SIZE   = 62
 
 local rect = Instance.new("Frame")
 rect.Name = "Rect"; rect.AnchorPoint = Vector2.new(0.5, 0.5)
 rect.Position = UDim2.new(0.5, 0, 0.5, 0); rect.Size = UDim2.new(0, 0, 0, 0)
 rect.BackgroundColor3 = BG_MAIN; rect.BackgroundTransparency = 1
-rect.BorderSizePixel = 0; rect.Rotation = -8; rect.ClipsDescendants = true
-rect.ZIndex = 1; rect.Parent = gui
+rect.BorderSizePixel = 0; rect.Rotation = -8; rect.ClipsDescendants = true; rect.Parent = gui
 local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, CORNER_RADIUS); corner.Parent = rect
 local border = Instance.new("UIStroke"); border.Color = BORDER_COLOR; border.Thickness = BORDER_THICK
 border.Transparency = 1; border.Parent = rect
 
-local BANNER_OFFSET_Y  = 70
-local BANNER_WIDTH_MUL = 1.10
-local BANNER_HEIGHT    = 0.30
-
 local halloweenBanner = Instance.new("ImageLabel")
-halloweenBanner.Name = "HalloweenBanner"; halloweenBanner.BackgroundTransparency = 1
-halloweenBanner.Image = HALLOWEEN_ICON; halloweenBanner.ScaleType = Enum.ScaleType.Fit
-halloweenBanner.AnchorPoint = Vector2.new(0.5, 1); halloweenBanner.ZIndex = 0
-halloweenBanner.Parent = gui
+halloweenBanner.BackgroundTransparency = 1; halloweenBanner.Image = HALLOWEEN_ICON
+halloweenBanner.ScaleType = Enum.ScaleType.Fit; halloweenBanner.AnchorPoint = Vector2.new(0.5, 1)
+halloweenBanner.ZIndex = 0; halloweenBanner.Parent = gui
 local function syncBanner()
-    local w = rect.AbsoluteSize.X * BANNER_WIDTH_MUL
-    local h = w * BANNER_HEIGHT
+    local w = rect.AbsoluteSize.X * 1.10
+    local h = w * 0.30
     halloweenBanner.Size = UDim2.new(0, w, 0, h)
-    halloweenBanner.Position = UDim2.new(0, rect.AbsolutePosition.X + rect.AbsoluteSize.X / 2, 0, rect.AbsolutePosition.Y + BANNER_OFFSET_Y)
+    halloweenBanner.Position = UDim2.new(0, rect.AbsolutePosition.X + rect.AbsoluteSize.X / 2, 0, rect.AbsolutePosition.Y + 70)
     halloweenBanner.Rotation = rect.Rotation
 end
 rect:GetPropertyChangedSignal("AbsolutePosition"):Connect(syncBanner)
@@ -31787,54 +31735,47 @@ RunService.RenderStepped:Connect(syncBanner)
 -- ============================================================
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 60); header.BackgroundColor3 = BG_HEADER
-header.BorderSizePixel = 0; header.ZIndex = 2; header.Parent = rect
+header.BorderSizePixel = 0; header.Parent = rect
 local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(0, CORNER_RADIUS); hc.Parent = header
-local hp = Instance.new("Frame")
-hp.Size = UDim2.new(1, 0, 0, CORNER_RADIUS + 2); hp.Position = UDim2.new(0, 0, 1, -(CORNER_RADIUS + 2))
-hp.BackgroundColor3 = BG_HEADER; hp.BorderSizePixel = 0; hp.ZIndex = 3; hp.Parent = header
+local hf = Instance.new("Frame")
+hf.Size = UDim2.new(1, 0, 0, CORNER_RADIUS + 2); hf.Position = UDim2.new(0, 0, 1, -(CORNER_RADIUS + 2))
+hf.BackgroundColor3 = BG_HEADER; hf.BorderSizePixel = 0; hf.Parent = header
 
 local shine = Instance.new("Frame")
 shine.Size = UDim2.new(0, 60, 1, 0); shine.Position = UDim2.new(0, -80, 0, 0)
 shine.BackgroundColor3 = ACCENT_GLOW; shine.BackgroundTransparency = 0.88
-shine.BorderSizePixel = 0; shine.Rotation = 12; shine.ZIndex = 3; shine.Parent = header
-local sgH = Instance.new("UIGradient")
-sgH.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-})
-sgH.Parent = shine
+shine.BorderSizePixel = 0; shine.Rotation = 12; shine.Parent = header
 
 local hContent = Instance.new("Frame")
-hContent.Size = UDim2.new(1, 0, 1, 0); hContent.BackgroundTransparency = 1
-hContent.ZIndex = 4; hContent.Parent = header
+hContent.Size = UDim2.new(1, 0, 1, 0); hContent.BackgroundTransparency = 1; hContent.Parent = header
 
 local dividerH = Instance.new("Frame")
 dividerH.Size = UDim2.new(1, 0, 0, BORDER_THICK); dividerH.Position = UDim2.new(0, 0, 0, 60)
 dividerH.BackgroundColor3 = BORDER_COLOR; dividerH.BackgroundTransparency = 0.15
-dividerH.BorderSizePixel = 0; dividerH.ZIndex = 5; dividerH.Parent = rect
+dividerH.BorderSizePixel = 0; dividerH.Parent = rect
 
 local logoImg = Instance.new("ImageLabel")
 logoImg.Size = UDim2.new(0, 40, 0, 40); logoImg.Position = UDim2.new(0, 14, 0.5, -20)
-logoImg.BackgroundTransparency = 1; logoImg.Image = LOGO_ICON; logoImg.ZIndex = 5; logoImg.Parent = hContent
+logoImg.BackgroundTransparency = 1; logoImg.Image = LOGO_ICON; logoImg.Parent = hContent
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(0, 220, 0, 20); title.Position = UDim2.new(0, 64, 0.5, -20)
 title.BackgroundTransparency = 1; title.Text = "Babis"; title.TextColor3 = ACCENT_ORANGE
 title.TextSize = 18; title.Font = FONT_STRONG; title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 5; title.Parent = hContent
+title.Parent = hContent
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(0, 260, 0, 18); subtitle.Position = UDim2.new(0, 64, 0.5, 2)
-subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v12"
+subtitle.BackgroundTransparency = 1; subtitle.Text = "Steal An Egg — v13"
 subtitle.TextColor3 = Color3.fromRGB(230, 215, 200); subtitle.TextSize = 14
-subtitle.Font = FONT_MAIN; subtitle.TextXAlignment = Enum.TextXAlignment.Left
-subtitle.ZIndex = 5; subtitle.Parent = hContent
+subtitle.Font = FONT_MAIN; subtitle.TextXAlignment = Enum.TextXAlignment.Left; subtitle.Parent = hContent
 
 local BTN_SIZE = 30; local SEP_W = 1
 local BOX_W = BTN_SIZE * 3 + SEP_W * 2 + 4; local BOX_H = BTN_SIZE + 8
 
 local btnBox = Instance.new("Frame")
 btnBox.Size = UDim2.new(0, BOX_W, 0, BOX_H); btnBox.Position = UDim2.new(1, -(BOX_W + 14), 0.5, -BOX_H / 2)
-btnBox.BackgroundColor3 = BG_MAIN; btnBox.BorderSizePixel = 0; btnBox.ZIndex = 8; btnBox.Parent = hContent
+btnBox.BackgroundColor3 = BG_MAIN; btnBox.BorderSizePixel = 0; btnBox.Parent = hContent
 local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 8); bc.Parent = btnBox
 local bs = Instance.new("UIStroke"); bs.Color = BORDER_COLOR; bs.Thickness = BORDER_THICK
 bs.Transparency = 0.15; bs.Parent = btnBox
@@ -31845,11 +31786,11 @@ local function makeIconBtn(image, order, size)
     b.Size = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE)
     b.Position = UDim2.new(0, 2 + (order - 1) * (BTN_SIZE + SEP_W), 0.5, -BTN_SIZE / 2)
     b.BackgroundTransparency = 1; b.Text = ""; b.BorderSizePixel = 0
-    b.AutoButtonColor = false; b.ZIndex = 9; b.Parent = btnBox
+    b.AutoButtonColor = false; b.Parent = btnBox
     local img = Instance.new("ImageLabel")
     img.Size = UDim2.new(0, size, 0, size); img.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
     img.BackgroundTransparency = 1; img.Image = image
-    img.ImageColor3 = Color3.fromRGB(230, 215, 200); img.ZIndex = 10; img.Parent = b
+    img.ImageColor3 = Color3.fromRGB(230, 215, 200); img.Parent = b
     b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), {BackgroundTransparency = 0.75}):Play() end)
     b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play() end)
     return b
@@ -31864,17 +31805,17 @@ for i = 1, 2 do
     sep.Size = UDim2.new(0, SEP_W, 0, BTN_SIZE)
     sep.Position = UDim2.new(0, 2 + i * BTN_SIZE + (i - 1) * SEP_W, 0.5, -BTN_SIZE / 2)
     sep.BackgroundColor3 = BORDER_COLOR; sep.BackgroundTransparency = 0.15
-    sep.BorderSizePixel = 0; sep.ZIndex = 9; sep.Parent = btnBox
+    sep.BorderSizePixel = 0; sep.Parent = btnBox
 end
 
 local dragCatcher = Instance.new("TextButton")
 dragCatcher.Size = UDim2.new(1, -(BOX_W + 24), 1, 0)
 dragCatcher.BackgroundTransparency = 1; dragCatcher.Text = ""
 dragCatcher.BorderSizePixel = 0; dragCatcher.AutoButtonColor = false
-dragCatcher.ZIndex = 6; dragCatcher.Parent = hContent
+dragCatcher.Parent = hContent
 
 -- ============================================================
--- Sidebar / Content
+-- Sidebar
 -- ============================================================
 local SIDEBAR_W = 150
 local TAB_H     = 42
@@ -31882,25 +31823,25 @@ local TAB_GAP   = 4
 
 local sidebar = Instance.new("Frame")
 sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, -60); sidebar.Position = UDim2.new(0, 0, 0, 60)
-sidebar.BackgroundColor3 = BG_HEADER; sidebar.BorderSizePixel = 0; sidebar.ZIndex = 2; sidebar.Parent = rect
+sidebar.BackgroundColor3 = BG_HEADER; sidebar.BorderSizePixel = 0; sidebar.Parent = rect
 local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, CORNER_RADIUS); sc.Parent = sidebar
 local spt = Instance.new("Frame")
 spt.Size = UDim2.new(1, 0, 0, CORNER_RADIUS + 2); spt.BackgroundColor3 = BG_HEADER
-spt.BorderSizePixel = 0; spt.ZIndex = 3; spt.Parent = sidebar
+spt.BorderSizePixel = 0; spt.Parent = sidebar
 local spbr = Instance.new("Frame")
 spbr.Size = UDim2.new(0, CORNER_RADIUS + 2, 0, CORNER_RADIUS + 2)
 spbr.Position = UDim2.new(1, -(CORNER_RADIUS + 2), 1, -(CORNER_RADIUS + 2))
-spbr.BackgroundColor3 = BG_HEADER; spbr.BorderSizePixel = 0; spbr.ZIndex = 3; spbr.Parent = sidebar
+spbr.BackgroundColor3 = BG_HEADER; spbr.BorderSizePixel = 0; spbr.Parent = sidebar
 local dv = Instance.new("Frame")
 dv.Size = UDim2.new(0, BORDER_THICK, 1, 0); dv.Position = UDim2.new(1, -BORDER_THICK, 0, 0)
 dv.BackgroundColor3 = BORDER_COLOR; dv.BackgroundTransparency = 0.15
-dv.BorderSizePixel = 0; dv.ZIndex = 4; dv.Parent = sidebar
+dv.BorderSizePixel = 0; dv.Parent = sidebar
 
 local tabsScroll = Instance.new("ScrollingFrame")
 tabsScroll.Size = UDim2.new(1, 0, 1, 0); tabsScroll.Position = UDim2.new(0, 0, 0, 10)
 tabsScroll.BackgroundTransparency = 1; tabsScroll.BorderSizePixel = 0
 tabsScroll.ScrollBarThickness = 2; tabsScroll.ScrollBarImageColor3 = BORDER_COLOR
-tabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0); tabsScroll.ZIndex = 5; tabsScroll.Parent = sidebar
+tabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0); tabsScroll.Parent = sidebar
 
 local tl = Instance.new("UIListLayout")
 tl.Padding = UDim.new(0, TAB_GAP); tl.SortOrder = Enum.SortOrder.LayoutOrder
@@ -31908,8 +31849,7 @@ tl.HorizontalAlignment = Enum.HorizontalAlignment.Center; tl.Parent = tabsScroll
 
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, -SIDEBAR_W, 1, -60); content.Position = UDim2.new(0, SIDEBAR_W, 0, 60)
-content.BackgroundTransparency = 1; content.ZIndex = 2; content.ClipsDescendants = true
-content.Parent = rect
+content.BackgroundTransparency = 1; content.ClipsDescendants = true; content.Parent = rect
 
 local pages = {}
 local builders = {}
@@ -31919,14 +31859,12 @@ local function makePage(tabName)
     page.Name = tabName; page.Size = UDim2.new(1, 0, 1, 0)
     page.BackgroundTransparency = 1; page.BorderSizePixel = 0
     page.ScrollBarThickness = 3; page.ScrollBarImageColor3 = BORDER_COLOR
-    page.CanvasSize = UDim2.new(0, 0, 0, 0); page.Visible = false
-    page.ZIndex = 3; page.Parent = content
+    page.CanvasSize = UDim2.new(0, 0, 0, 0); page.Visible = false; page.Parent = content
     local pad = Instance.new("UIPadding")
     pad.PaddingTop = UDim.new(0, 14); pad.PaddingBottom = UDim.new(0, 14)
     pad.PaddingLeft = UDim.new(0, 14); pad.PaddingRight = UDim.new(0, 14); pad.Parent = page
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8); layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = page
+    layout.Padding = UDim.new(0, 8); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = page
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 28)
     end)
@@ -31950,71 +31888,7 @@ for _, tab in ipairs(TABS) do makePage(tab.name) end
 -- ============================================================
 -- Card helpers
 -- ============================================================
-local function addClickButton(parent, titleText, descText, iconId, order, callback)
-    local wrapper = Instance.new("Frame")
-    wrapper.Size = UDim2.new(1, 0, 0, 74); wrapper.BackgroundTransparency = 1
-    wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
-    local card = Instance.new("TextButton")
-    card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
-    card.Text = ""; card.BorderSizePixel = 0; card.AutoButtonColor = false
-    card.ClipsDescendants = true; card.Parent = wrapper
-    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
-    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105, 72, 48)
-    cs.Thickness = 1; cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
-    local cardShine = Instance.new("Frame")
-    cardShine.Size = UDim2.new(0, 60, 1, 0); cardShine.Position = UDim2.new(0, -80, 0, 0)
-    cardShine.BackgroundColor3 = ACCENT_GLOW; cardShine.BackgroundTransparency = 0.92
-    cardShine.BorderSizePixel = 0; cardShine.Rotation = 12; cardShine.ZIndex = 2; cardShine.Parent = card
-    local csg = Instance.new("UIGradient")
-    csg.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-    })
-    csg.Parent = cardShine
-    local tlb = Instance.new("TextLabel")
-    tlb.Size = UDim2.new(1, -100, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 14)
-    tlb.BackgroundTransparency = 1; tlb.Text = titleText
-    tlb.TextColor3 = Color3.fromRGB(245, 230, 215); tlb.TextSize = 16
-    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left
-    tlb.ZIndex = 3; tlb.Parent = card
-    local dlb = Instance.new("TextLabel")
-    dlb.Size = UDim2.new(1, -100, 0, 16); dlb.Position = UDim2.new(0, 18, 0, 36)
-    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
-    dlb.TextColor3 = Color3.fromRGB(160, 140, 122); dlb.TextSize = 12
-    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
-    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.ZIndex = 3; dlb.Parent = card
-    local icon = Instance.new("ImageLabel")
-    icon.Size = UDim2.new(0, 44, 0, 44); icon.Position = UDim2.new(1, -62, 0.5, -22)
-    icon.BackgroundTransparency = 1; icon.Image = iconId or "rbxassetid://7733715400"
-    icon.ImageColor3 = Color3.fromRGB(255, 235, 205); icon.ZIndex = 3; icon.Parent = card
-    card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 14)}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
-        TweenService:Create(tlb, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(0, 22, 0, 14)}):Play()
-        TweenService:Create(icon, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(1, -66, 0.5, -25),
-            ImageColor3 = Color3.new(1, 1, 1),
-        }):Play()
-        cardShine.Position = UDim2.new(0, -80, 0, 0)
-        TweenService:Create(cardShine, TweenInfo.new(0.85, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, 30, 0, 0)}):Play()
-    end)
-    card.MouseLeave:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-        TweenService:Create(tlb, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(0, 18, 0, 14)}):Play()
-        TweenService:Create(icon, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 44, 0, 44), Position = UDim2.new(1, -62, 0.5, -22),
-            ImageColor3 = Color3.fromRGB(255, 235, 205),
-        }):Play()
-    end)
-    card.MouseButton1Click:Connect(function()
-        cardShine.Position = UDim2.new(0, -80, 0, 0)
-        TweenService:Create(cardShine, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, 30, 0, 0)}):Play()
-        if callback then pcall(callback) end
-    end)
-    return wrapper
-end
-
-local function addToggleButton(parent, titleText, descText, defaultOn, order, callback)
+local function addToggle(parent, titleText, descText, defaultOn, order, callback)
     local state = defaultOn or false
     local wrapper = Instance.new("Frame")
     wrapper.Size = UDim2.new(1, 0, 0, 74); wrapper.BackgroundTransparency = 1
@@ -32024,81 +31898,197 @@ local function addToggleButton(parent, titleText, descText, defaultOn, order, ca
     card.Text = ""; card.BorderSizePixel = 0; card.AutoButtonColor = false
     card.ClipsDescendants = true; card.Parent = wrapper
     local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
-    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105, 72, 48)
-    cs.Thickness = 1; cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
-    local cardShine = Instance.new("Frame")
-    cardShine.Size = UDim2.new(0, 60, 1, 0); cardShine.Position = UDim2.new(0, -80, 0, 0)
-    cardShine.BackgroundColor3 = ACCENT_GLOW; cardShine.BackgroundTransparency = 0.92
-    cardShine.BorderSizePixel = 0; cardShine.Rotation = 12; cardShine.ZIndex = 2; cardShine.Parent = card
-    local csg = Instance.new("UIGradient")
-    csg.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-    })
-    csg.Parent = cardShine
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1
+    cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
     local tlb = Instance.new("TextLabel")
     tlb.Size = UDim2.new(1, -100, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 14)
     tlb.BackgroundTransparency = 1; tlb.Text = titleText
-    tlb.TextColor3 = Color3.fromRGB(245, 230, 215); tlb.TextSize = 16
-    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left
-    tlb.ZIndex = 3; tlb.Parent = card
+    tlb.TextColor3 = Color3.fromRGB(245,230,215); tlb.TextSize = 15
+    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left; tlb.Parent = card
     local dlb = Instance.new("TextLabel")
     dlb.Size = UDim2.new(1, -100, 0, 16); dlb.Position = UDim2.new(0, 18, 0, 36)
     dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
-    dlb.TextColor3 = Color3.fromRGB(160, 140, 122); dlb.TextSize = 12
+    dlb.TextColor3 = Color3.fromRGB(160,140,122); dlb.TextSize = 11
     dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
-    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.ZIndex = 3; dlb.Parent = card
+    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.Parent = card
     local track = Instance.new("Frame")
     track.Size = UDim2.new(0, 46, 0, 24); track.Position = UDim2.new(1, -62, 0.5, -12)
-    track.BackgroundColor3 = state and ACCENT_ORANGE or Color3.fromRGB(45, 32, 22)
-    track.BorderSizePixel = 0; track.ZIndex = 3; track.Parent = card
+    track.BackgroundColor3 = state and ACCENT_ORANGE or Color3.fromRGB(45,32,22)
+    track.BorderSizePixel = 0; track.Parent = card
     local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = track
-    local ts = Instance.new("UIStroke")
-    ts.Color = state and Color3.fromRGB(255, 170, 90) or Color3.fromRGB(105, 72, 48)
+    local ts = Instance.new("UIStroke"); ts.Color = state and ACCENT_GLOW or Color3.fromRGB(105,72,48)
     ts.Thickness = 1; ts.Parent = track
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 18, 0, 18)
     knob.Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
-    knob.BackgroundColor3 = Color3.new(1, 1, 1); knob.BorderSizePixel = 0
-    knob.ZIndex = 4; knob.Parent = track
+    knob.BackgroundColor3 = Color3.new(1,1,1); knob.BorderSizePixel = 0; knob.Parent = track
     local kc = Instance.new("UICorner"); kc.CornerRadius = UDim.new(0, 9); kc.Parent = knob
-    local ks = Instance.new("UIStroke")
-    ks.Color = state and ACCENT_ORANGE or Color3.fromRGB(80, 60, 45)
+    local ks = Instance.new("UIStroke"); ks.Color = state and ACCENT_ORANGE or Color3.fromRGB(80,60,45)
     ks.Thickness = 2; ks.Parent = knob
-    local function applyState(animate)
-        local d = animate and 0.25 or 0.001
-        if state then
-            TweenService:Create(track, TweenInfo.new(d, Enum.EasingStyle.Quart), {BackgroundColor3 = ACCENT_ORANGE}):Play()
-            TweenService:Create(ts, TweenInfo.new(d), {Color = Color3.fromRGB(255, 170, 90)}):Play()
-            TweenService:Create(knob, TweenInfo.new(d, Enum.EasingStyle.Back), {Position = UDim2.new(1, -20, 0.5, -9)}):Play()
-            TweenService:Create(ks, TweenInfo.new(d), {Color = ACCENT_ORANGE}):Play()
-        else
-            TweenService:Create(track, TweenInfo.new(d, Enum.EasingStyle.Quart), {BackgroundColor3 = Color3.fromRGB(45, 32, 22)}):Play()
-            TweenService:Create(ts, TweenInfo.new(d), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-            TweenService:Create(knob, TweenInfo.new(d, Enum.EasingStyle.Back), {Position = UDim2.new(0, 2, 0.5, -9)}):Play()
-            TweenService:Create(ks, TweenInfo.new(d), {Color = Color3.fromRGB(80, 60, 45)}):Play()
-        end
-    end
     card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 14)}):Play()
+        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34,22,14)}):Play()
         TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
-        TweenService:Create(tlb, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(0, 22, 0, 14)}):Play()
-        cardShine.Position = UDim2.new(0, -80, 0, 0)
-        TweenService:Create(cardShine, TweenInfo.new(0.85, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, 30, 0, 0)}):Play()
     end)
     card.MouseLeave:Connect(function()
         TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-        TweenService:Create(tlb, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(0, 18, 0, 14)}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105,72,48)}):Play()
     end)
     card.MouseButton1Click:Connect(function()
         state = not state
-        applyState(true)
+        if state then
+            TweenService:Create(track, TweenInfo.new(0.25), {BackgroundColor3 = ACCENT_ORANGE}):Play()
+            TweenService:Create(ts, TweenInfo.new(0.25), {Color = ACCENT_GLOW}):Play()
+            TweenService:Create(knob, TweenInfo.new(0.25), {Position = UDim2.new(1, -20, 0.5, -9)}):Play()
+            TweenService:Create(ks, TweenInfo.new(0.25), {Color = ACCENT_ORANGE}):Play()
+        else
+            TweenService:Create(track, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(45,32,22)}):Play()
+            TweenService:Create(ts, TweenInfo.new(0.25), {Color = Color3.fromRGB(105,72,48)}):Play()
+            TweenService:Create(knob, TweenInfo.new(0.25), {Position = UDim2.new(0, 2, 0.5, -9)}):Play()
+            TweenService:Create(ks, TweenInfo.new(0.25), {Color = Color3.fromRGB(80,60,45)}):Play()
+        end
         if callback then pcall(callback, state) end
     end)
-    return wrapper, function() return state end
+    return wrapper
 end
 
-local function addSliderCard(parent, titleText, descText, minVal, maxVal, defaultValue, order, callback)
+local function addButton(parent, titleText, descText, order, callback)
+    local wrapper = Instance.new("Frame")
+    wrapper.Size = UDim2.new(1, 0, 0, 66); wrapper.BackgroundTransparency = 1
+    wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
+    local card = Instance.new("TextButton")
+    card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
+    card.Text = ""; card.BorderSizePixel = 0; card.AutoButtonColor = false
+    card.ClipsDescendants = true; card.Parent = wrapper
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1
+    cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
+    local tlb = Instance.new("TextLabel")
+    tlb.Size = UDim2.new(1, -30, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 12)
+    tlb.BackgroundTransparency = 1; tlb.Text = titleText
+    tlb.TextColor3 = Color3.fromRGB(245,230,215); tlb.TextSize = 15
+    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left; tlb.Parent = card
+    local dlb = Instance.new("TextLabel")
+    dlb.Size = UDim2.new(1, -30, 0, 16); dlb.Position = UDim2.new(0, 18, 0, 34)
+    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
+    dlb.TextColor3 = Color3.fromRGB(160,140,122); dlb.TextSize = 11
+    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
+    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.Parent = card
+    card.MouseEnter:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34,22,14)}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
+    end)
+    card.MouseLeave:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105,72,48)}):Play()
+    end)
+    card.MouseButton1Click:Connect(function()
+        if callback then pcall(callback) end
+    end)
+    return wrapper
+end
+
+local function addSelect(parent, titleText, descText, options, defaultIndex, order, callback)
+    defaultIndex = defaultIndex or 1
+    local selectedIndex = math.clamp(defaultIndex, 1, #options)
+    local wrapper = Instance.new("Frame")
+    wrapper.Size = UDim2.new(1, 0, 0, 74); wrapper.BackgroundTransparency = 1
+    wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
+    card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = wrapper
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1
+    cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
+    local tlb = Instance.new("TextLabel")
+    tlb.Size = UDim2.new(1, -140, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 14)
+    tlb.BackgroundTransparency = 1; tlb.Text = titleText
+    tlb.TextColor3 = Color3.fromRGB(245,230,215); tlb.TextSize = 15
+    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left; tlb.Parent = card
+    local dlb = Instance.new("TextLabel")
+    dlb.Size = UDim2.new(1, -140, 0, 16); dlb.Position = UDim2.new(0, 18, 0, 36)
+    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
+    dlb.TextColor3 = Color3.fromRGB(160,140,122); dlb.TextSize = 11
+    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
+    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.Parent = card
+    local sel = Instance.new("TextButton")
+    sel.Size = UDim2.new(0, 120, 0, 32); sel.Position = UDim2.new(1, -134, 0.5, -16)
+    sel.BackgroundColor3 = Color3.fromRGB(35,22,14); sel.Text = ""
+    sel.BorderSizePixel = 0; sel.AutoButtonColor = false; sel.ClipsDescendants = true; sel.Parent = card
+    local sbc = Instance.new("UICorner"); sbc.CornerRadius = UDim.new(0, 8); sbc.Parent = sel
+    local sbs = Instance.new("UIStroke"); sbs.Color = Color3.fromRGB(105,72,48); sbs.Thickness = 1; sbs.Parent = sel
+    local lab = Instance.new("TextLabel")
+    lab.Size = UDim2.new(1, -26, 1, 0); lab.Position = UDim2.new(0, 10, 0, 0)
+    lab.BackgroundTransparency = 1; lab.Text = options[selectedIndex]
+    lab.TextColor3 = ACCENT_ORANGE; lab.TextSize = 11; lab.Font = FONT_STRONG
+    lab.TextXAlignment = Enum.TextXAlignment.Left; lab.TextTruncate = Enum.TextTruncate.AtEnd; lab.Parent = sel
+    local arr = Instance.new("TextLabel")
+    arr.Size = UDim2.new(0, 16, 0, 16); arr.Position = UDim2.new(1, -20, 0.5, -8)
+    arr.BackgroundTransparency = 1; arr.Text = "v"; arr.TextColor3 = ACCENT_ORANGE
+    arr.TextSize = 10; arr.Font = FONT_STRONG; arr.Parent = sel
+    sel.MouseButton1Click:Connect(function()
+        selectedIndex = selectedIndex % #options + 1
+        lab.Text = options[selectedIndex]
+        if callback then pcall(callback, options[selectedIndex], selectedIndex) end
+    end)
+    card.MouseEnter:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34,22,14)}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
+    end)
+    card.MouseLeave:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105,72,48)}):Play()
+    end)
+    return wrapper
+end
+
+local function addInput(parent, titleText, descText, placeholder, defaultValue, order, callback)
+    local wrapper = Instance.new("Frame")
+    wrapper.Size = UDim2.new(1, 0, 0, 86); wrapper.BackgroundTransparency = 1
+    wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
+    card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = wrapper
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1
+    cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
+    local tlb = Instance.new("TextLabel")
+    tlb.Size = UDim2.new(1, -30, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 10)
+    tlb.BackgroundTransparency = 1; tlb.Text = titleText
+    tlb.TextColor3 = Color3.fromRGB(245,230,215); tlb.TextSize = 15
+    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left; tlb.Parent = card
+    local dlb = Instance.new("TextLabel")
+    dlb.Size = UDim2.new(1, -30, 0, 14); dlb.Position = UDim2.new(0, 18, 0, 30)
+    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
+    dlb.TextColor3 = Color3.fromRGB(160,140,122); dlb.TextSize = 11
+    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
+    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.Parent = card
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -36, 0, 28); box.Position = UDim2.new(0, 18, 1, -34)
+    box.BackgroundColor3 = Color3.fromRGB(35,22,14)
+    box.Text = tostring(defaultValue or "")
+    box.PlaceholderText = placeholder or "type..."
+    box.PlaceholderColor3 = Color3.fromRGB(140,110,90)
+    box.TextColor3 = ACCENT_ORANGE; box.TextSize = 12; box.Font = FONT_STRONG
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.ClearTextOnFocus = false; box.Parent = card
+    local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 8); bc.Parent = box
+    local bs = Instance.new("UIStroke"); bs.Color = Color3.fromRGB(105,72,48); bs.Thickness = 1; bs.Parent = box
+    local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, 10); pad.Parent = box
+    box.FocusLost:Connect(function()
+        if callback then pcall(callback, box.Text) end
+    end)
+    card.MouseEnter:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34,22,14)}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
+    end)
+    card.MouseLeave:Connect(function()
+        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105,72,48)}):Play()
+    end)
+    return wrapper
+end
+
+local function addSlider(parent, titleText, descText, minVal, maxVal, defaultValue, order, callback)
     minVal = minVal or 0; maxVal = maxVal or 100
     local value = math.clamp(defaultValue or minVal, minVal, maxVal)
     local wrapper = Instance.new("Frame")
@@ -32108,51 +32098,40 @@ local function addSliderCard(parent, titleText, descText, minVal, maxVal, defaul
     card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
     card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = wrapper
     local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
-    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105, 72, 48)
-    cs.Thickness = 1; cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
-    local cardShine = Instance.new("Frame")
-    cardShine.Size = UDim2.new(0, 60, 1, 0); cardShine.Position = UDim2.new(0, -80, 0, 0)
-    cardShine.BackgroundColor3 = ACCENT_GLOW; cardShine.BackgroundTransparency = 0.92
-    cardShine.BorderSizePixel = 0; cardShine.Rotation = 12; cardShine.ZIndex = 2; cardShine.Parent = card
-    local csg = Instance.new("UIGradient")
-    csg.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-    })
-    csg.Parent = cardShine
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1
+    cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
     local tlb = Instance.new("TextLabel")
     tlb.Size = UDim2.new(1, -120, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 12)
     tlb.BackgroundTransparency = 1; tlb.Text = titleText
-    tlb.TextColor3 = Color3.fromRGB(245, 230, 215); tlb.TextSize = 15
-    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left
-    tlb.ZIndex = 3; tlb.Parent = card
+    tlb.TextColor3 = Color3.fromRGB(245,230,215); tlb.TextSize = 15
+    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left; tlb.Parent = card
     local dlb = Instance.new("TextLabel")
     dlb.Size = UDim2.new(1, -120, 0, 14); dlb.Position = UDim2.new(0, 18, 0, 32)
     dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
-    dlb.TextColor3 = Color3.fromRGB(160, 140, 122); dlb.TextSize = 11
+    dlb.TextColor3 = Color3.fromRGB(160,140,122); dlb.TextSize = 11
     dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
-    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.ZIndex = 3; dlb.Parent = card
+    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.Parent = card
     local numBox = Instance.new("TextBox")
     numBox.Size = UDim2.new(0, 70, 0, 30); numBox.Position = UDim2.new(1, -84, 0, 12)
-    numBox.BackgroundColor3 = Color3.fromRGB(35, 22, 14); numBox.Text = tostring(value)
+    numBox.BackgroundColor3 = Color3.fromRGB(35,22,14); numBox.Text = tostring(value)
     numBox.TextColor3 = ACCENT_ORANGE; numBox.TextSize = 14; numBox.Font = FONT_STRONG
     numBox.BorderSizePixel = 0; numBox.TextXAlignment = Enum.TextXAlignment.Center
-    numBox.ClearTextOnFocus = false; numBox.ZIndex = 4; numBox.Parent = card
+    numBox.ClearTextOnFocus = false; numBox.Parent = card
     local nc = Instance.new("UICorner"); nc.CornerRadius = UDim.new(0, 8); nc.Parent = numBox
-    local ns = Instance.new("UIStroke"); ns.Color = Color3.fromRGB(105, 72, 48); ns.Thickness = 1; ns.Parent = numBox
+    local ns = Instance.new("UIStroke"); ns.Color = Color3.fromRGB(105,72,48); ns.Thickness = 1; ns.Parent = numBox
     local track = Instance.new("Frame")
     track.Size = UDim2.new(1, -32, 0, 8); track.Position = UDim2.new(0, 16, 1, -24)
-    track.BackgroundColor3 = Color3.fromRGB(45, 32, 22); track.BorderSizePixel = 0
-    track.ZIndex = 3; track.Parent = card
+    track.BackgroundColor3 = Color3.fromRGB(45,32,22); track.BorderSizePixel = 0; track.Parent = card
     local trc = Instance.new("UICorner"); trc.CornerRadius = UDim.new(0, 4); trc.Parent = track
     local ratio = (value - minVal) / (maxVal - minVal)
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new(ratio, 0, 1, 0); fill.BackgroundColor3 = ACCENT_ORANGE
-    fill.BorderSizePixel = 0; fill.ZIndex = 5; fill.Parent = track
+    fill.BorderSizePixel = 0; fill.Parent = track
     local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0, 4); fc.Parent = fill
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 14, 0, 14); knob.Position = UDim2.new(ratio, 0, 0.5, 0)
-    knob.AnchorPoint = Vector2.new(0.5, 0.5); knob.BackgroundColor3 = Color3.new(1, 1, 1)
-    knob.BorderSizePixel = 0; knob.ZIndex = 6; knob.Parent = track
+    knob.AnchorPoint = Vector2.new(0.5, 0.5); knob.BackgroundColor3 = Color3.new(1,1,1)
+    knob.BorderSizePixel = 0; knob.Parent = track
     local kc = Instance.new("UICorner"); kc.CornerRadius = UDim.new(0, 7); kc.Parent = knob
     local ks = Instance.new("UIStroke"); ks.Color = ACCENT_ORANGE; ks.Thickness = 2; ks.Parent = knob
     local dragging = false
@@ -32192,240 +32171,32 @@ local function addSliderCard(parent, titleText, descText, minVal, maxVal, defaul
         setValue(n, true)
     end)
     card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 14)}):Play()
+        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34,22,14)}):Play()
         TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
     end)
     card.MouseLeave:Connect(function()
         TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105, 72, 48)}):Play()
+        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105,72,48)}):Play()
     end)
-    return wrapper, function() return value end
+    return wrapper
 end
 
-local activeDropdownCloser = nil
-
-local function addSelectCard(parent, titleText, descText, options, defaultIndex, order, callback)
-    defaultIndex = defaultIndex or 1
-    local selectedIndex = math.clamp(defaultIndex, 1, #options)
+local function addInfoCard(parent, text, order)
     local wrapper = Instance.new("Frame")
     wrapper.Size = UDim2.new(1, 0, 0, 74); wrapper.BackgroundTransparency = 1
     wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
     local card = Instance.new("Frame")
     card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
-    card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = wrapper
-    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
-    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105, 72, 48)
-    cs.Thickness = 1; cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
-    local cardShine = Instance.new("Frame")
-    cardShine.Size = UDim2.new(0, 60, 1, 0); cardShine.Position = UDim2.new(0, -80, 0, 0)
-    cardShine.BackgroundColor3 = ACCENT_GLOW; cardShine.BackgroundTransparency = 0.92
-    cardShine.BorderSizePixel = 0; cardShine.Rotation = 12; cardShine.ZIndex = 2; cardShine.Parent = card
-    local csg = Instance.new("UIGradient")
-    csg.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-    })
-    csg.Parent = cardShine
-    local tlb = Instance.new("TextLabel")
-    tlb.Size = UDim2.new(1, -140, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 14)
-    tlb.BackgroundTransparency = 1; tlb.Text = titleText
-    tlb.TextColor3 = Color3.fromRGB(245, 230, 215); tlb.TextSize = 16
-    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left
-    tlb.ZIndex = 3; tlb.Parent = card
-    local dlb = Instance.new("TextLabel")
-    dlb.Size = UDim2.new(1, -140, 0, 16); dlb.Position = UDim2.new(0, 18, 0, 36)
-    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
-    dlb.TextColor3 = Color3.fromRGB(160, 140, 122); dlb.TextSize = 12
-    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
-    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.ZIndex = 3; dlb.Parent = card
-    local selectBox = Instance.new("TextButton")
-    selectBox.Size = UDim2.new(0, 110, 0, 32); selectBox.Position = UDim2.new(1, -124, 0.5, -16)
-    selectBox.BackgroundColor3 = Color3.fromRGB(35, 22, 14); selectBox.Text = ""
-    selectBox.BorderSizePixel = 0; selectBox.AutoButtonColor = false
-    selectBox.ClipsDescendants = true; selectBox.ZIndex = 4; selectBox.Parent = card
-    local sbC = Instance.new("UICorner"); sbC.CornerRadius = UDim.new(0, 8); sbC.Parent = selectBox
-    local sbS = Instance.new("UIStroke"); sbS.Color = Color3.fromRGB(105, 72, 48); sbS.Thickness = 1; sbS.Parent = selectBox
-    local sbLabel = Instance.new("TextLabel")
-    sbLabel.Size = UDim2.new(1, -26, 1, 0); sbLabel.Position = UDim2.new(0, 10, 0, 0)
-    sbLabel.BackgroundTransparency = 1; sbLabel.Text = options[selectedIndex]
-    sbLabel.TextColor3 = ACCENT_ORANGE; sbLabel.TextSize = 13; sbLabel.Font = FONT_STRONG
-    sbLabel.TextXAlignment = Enum.TextXAlignment.Left; sbLabel.TextTruncate = Enum.TextTruncate.AtEnd
-    sbLabel.ZIndex = 5; sbLabel.Parent = selectBox
-    local arrow = Instance.new("TextLabel")
-    arrow.Size = UDim2.new(0, 16, 0, 16); arrow.Position = UDim2.new(1, -20, 0.5, -8)
-    arrow.BackgroundTransparency = 1; arrow.Text = "▼"; arrow.TextColor3 = ACCENT_ORANGE
-    arrow.TextSize = 10; arrow.Font = FONT_STRONG; arrow.ZIndex = 5; arrow.Parent = selectBox
-    local isOpen = false; local dropdownGui = nil
-    local function closeDropdown()
-        if not isOpen then return end
-        isOpen = false
-        if activeDropdownCloser == closeDropdown then activeDropdownCloser = nil end
-        TweenService:Create(arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Rotation = 0}):Play()
-        TweenService:Create(selectBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 22, 14)}):Play()
-        TweenService:Create(sbS, TweenInfo.new(0.15), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-        if dropdownGui then
-            local dg = dropdownGui; dropdownGui = nil
-            local dd = dg:FindFirstChild("Dropdown")
-            if dd then
-                TweenService:Create(dd, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-                    Size = UDim2.new(dd.Size.X.Scale, dd.Size.X.Offset, 0, 0),
-                }):Play()
-            end
-            task.delay(0.3, function() if dg then dg:Destroy() end end)
-        end
-    end
-    local function openDropdown()
-        isOpen = true
-        if activeDropdownCloser and activeDropdownCloser ~= closeDropdown then activeDropdownCloser() end
-        activeDropdownCloser = closeDropdown
-        TweenService:Create(arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Rotation = 180}):Play()
-        TweenService:Create(selectBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(48, 30, 18)}):Play()
-        TweenService:Create(sbS, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
-        dropdownGui = Instance.new("ScreenGui")
-        dropdownGui.Name = "BabisUIDropdown"; dropdownGui.ResetOnSpawn = false
-        dropdownGui.IgnoreGuiInset = true; dropdownGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        dropdownGui.DisplayOrder = 999; dropdownGui.Parent = PlayerGui
-        local backdrop = Instance.new("TextButton")
-        backdrop.Size = UDim2.new(1, 0, 1, 0); backdrop.BackgroundTransparency = 1
-        backdrop.Text = ""; backdrop.TextTransparency = 1; backdrop.BorderSizePixel = 0
-        backdrop.AutoButtonColor = false; backdrop.ZIndex = 1; backdrop.Parent = dropdownGui
-        backdrop.MouseButton1Click:Connect(closeDropdown)
-        local absPos = selectBox.AbsolutePosition
-        local absSize = selectBox.AbsoluteSize
-        local optionH = 32; local pad = 6
-        local fullHeight = #options * optionH + pad * 2
-        local openAbove = absPos.Y >= fullHeight + 6
-        local dropdown = Instance.new("Frame")
-        dropdown.Name = "Dropdown"
-        dropdown.Size = UDim2.new(0, absSize.X, 0, 0)
-        dropdown.BackgroundColor3 = Color3.fromRGB(28, 18, 11)
-        dropdown.BorderSizePixel = 0; dropdown.ClipsDescendants = true
-        dropdown.ZIndex = 2; dropdown.Parent = dropdownGui
-        if openAbove then
-            dropdown.AnchorPoint = Vector2.new(0, 1)
-            dropdown.Position = UDim2.new(0, absPos.X, 0, absPos.Y)
-        else
-            dropdown.AnchorPoint = Vector2.new(0, 0)
-            dropdown.Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y)
-        end
-        local ddC = Instance.new("UICorner"); ddC.CornerRadius = UDim.new(0, 10); ddC.Parent = dropdown
-        local ddS = Instance.new("UIStroke"); ddS.Color = Color3.fromRGB(105, 72, 48); ddS.Thickness = 1; ddS.Parent = dropdown
-        for i, opt in ipairs(options) do
-            local isSelected = (i == selectedIndex)
-            local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -12, 0, optionH - 2)
-            optBtn.Position = UDim2.new(0, 6, 0, pad + (i - 1) * optionH)
-            optBtn.BackgroundColor3 = isSelected and ACCENT_ORANGE or Color3.fromRGB(35, 22, 14)
-            optBtn.BackgroundTransparency = 1
-            optBtn.Text = opt
-            optBtn.TextColor3 = isSelected and Color3.fromRGB(30, 15, 5) or ACCENT_ORANGE
-            optBtn.TextSize = 12; optBtn.Font = FONT_STRONG
-            optBtn.TextTransparency = 1
-            optBtn.TextXAlignment = Enum.TextXAlignment.Left
-            optBtn.BorderSizePixel = 0; optBtn.AutoButtonColor = false
-            optBtn.ZIndex = 3; optBtn.Parent = dropdown
-            local obC = Instance.new("UICorner"); obC.CornerRadius = UDim.new(0, 6); obC.Parent = optBtn
-            local padding = Instance.new("UIPadding"); padding.PaddingLeft = UDim.new(0, 10); padding.Parent = optBtn
-            optBtn.MouseEnter:Connect(function()
-                TweenService:Create(optBtn, TweenInfo.new(0.1), {
-                    BackgroundColor3 = isSelected and ACCENT_ORANGE or Color3.fromRGB(50, 32, 20),
-                    BackgroundTransparency = 0,
-                }):Play()
-            end)
-            optBtn.MouseLeave:Connect(function()
-                if not isSelected then
-                    TweenService:Create(optBtn, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
-                end
-            end)
-            optBtn.MouseButton1Click:Connect(function()
-                selectedIndex = i
-                sbLabel.Text = opt
-                closeDropdown()
-                if callback then pcall(callback, opt, i) end
-            end)
-            task.delay(0.08 + i * 0.03, function()
-                if optBtn and optBtn.Parent then
-                    TweenService:Create(optBtn, TweenInfo.new(0.18), {
-                        BackgroundTransparency = isSelected and 0 or 1,
-                        TextTransparency = 0,
-                    }):Play()
-                end
-            end)
-        end
-        TweenService:Create(dropdown, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, absSize.X, 0, fullHeight),
-        }):Play()
-    end
-    selectBox.MouseButton1Click:Connect(function()
-        if isOpen then closeDropdown() else openDropdown() end
-    end)
-    card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 14)}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
-    end)
-    card.MouseLeave:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-    end)
-    return wrapper, function() return options[selectedIndex], selectedIndex end
-end
-
-local function addInputCard(parent, titleText, descText, placeholder, defaultValue, order, callback)
-    local wrapper = Instance.new("Frame")
-    wrapper.Size = UDim2.new(1, 0, 0, 86); wrapper.BackgroundTransparency = 1
-    wrapper.LayoutOrder = order or 0; wrapper.Parent = parent
-    local card = Instance.new("Frame")
-    card.Size = UDim2.new(1, 0, 1, 0); card.BackgroundColor3 = BG_CARD
-    card.BorderSizePixel = 0; card.ClipsDescendants = true; card.Parent = wrapper
-    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = card
-    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105, 72, 48)
-    cs.Thickness = 1; cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; cs.Parent = card
-    local cardShine = Instance.new("Frame")
-    cardShine.Size = UDim2.new(0, 60, 1, 0); cardShine.Position = UDim2.new(0, -80, 0, 0)
-    cardShine.BackgroundColor3 = ACCENT_GLOW; cardShine.BackgroundTransparency = 0.92
-    cardShine.BorderSizePixel = 0; cardShine.Rotation = 12; cardShine.ZIndex = 2; cardShine.Parent = card
-    local csg = Instance.new("UIGradient")
-    csg.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1),
-    })
-    csg.Parent = cardShine
-    local tlb = Instance.new("TextLabel")
-    tlb.Size = UDim2.new(1, -30, 0, 20); tlb.Position = UDim2.new(0, 18, 0, 10)
-    tlb.BackgroundTransparency = 1; tlb.Text = titleText
-    tlb.TextColor3 = Color3.fromRGB(245, 230, 215); tlb.TextSize = 15
-    tlb.Font = FONT_STRONG; tlb.TextXAlignment = Enum.TextXAlignment.Left
-    tlb.ZIndex = 3; tlb.Parent = card
-    local dlb = Instance.new("TextLabel")
-    dlb.Size = UDim2.new(1, -30, 0, 14); dlb.Position = UDim2.new(0, 18, 0, 30)
-    dlb.BackgroundTransparency = 1; dlb.Text = descText or ""
-    dlb.TextColor3 = Color3.fromRGB(160, 140, 122); dlb.TextSize = 11
-    dlb.Font = FONT_MAIN; dlb.TextXAlignment = Enum.TextXAlignment.Left
-    dlb.TextTruncate = Enum.TextTruncate.AtEnd; dlb.ZIndex = 3; dlb.Parent = card
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(1, -36, 0, 28); box.Position = UDim2.new(0, 18, 1, -34)
-    box.BackgroundColor3 = Color3.fromRGB(35, 22, 14)
-    box.Text = tostring(defaultValue or "")
-    box.PlaceholderText = placeholder or "type..."
-    box.PlaceholderColor3 = Color3.fromRGB(140, 110, 90)
-    box.TextColor3 = ACCENT_ORANGE; box.TextSize = 13; box.Font = FONT_STRONG
-    box.TextXAlignment = Enum.TextXAlignment.Left
-    box.ClearTextOnFocus = false; box.ZIndex = 4; box.Parent = card
-    local bc2 = Instance.new("UICorner"); bc2.CornerRadius = UDim.new(0, 8); bc2.Parent = box
-    local bs2 = Instance.new("UIStroke"); bs2.Color = Color3.fromRGB(105, 72, 48); bs2.Thickness = 1; bs2.Parent = box
-    local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, 10); pad.Parent = box
-    box.Focused:Connect(function() TweenService:Create(bs2, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play() end)
-    box.FocusLost:Connect(function()
-        TweenService:Create(bs2, TweenInfo.new(0.15), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-        if callback then pcall(callback, box.Text) end
-    end)
-    card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 14)}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.15), {Color = ACCENT_ORANGE}):Play()
-    end)
-    card.MouseLeave:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = BG_CARD}):Play()
-        TweenService:Create(cs, TweenInfo.new(0.2), {Color = Color3.fromRGB(105, 72, 48)}):Play()
-    end)
-    return wrapper, function() return box.Text end
+    card.BorderSizePixel = 0; card.Parent = wrapper
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 10); cc.Parent = card
+    local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(105,72,48); cs.Thickness = 1; cs.Parent = card
+    local t = Instance.new("TextLabel")
+    t.Size = UDim2.new(1, -24, 1, 0); t.Position = UDim2.new(0, 12, 0, 0)
+    t.BackgroundTransparency = 1; t.Text = tostring(text or "")
+    t.TextColor3 = Color3.fromRGB(200,185,170); t.Font = FONT_MAIN
+    t.TextSize = 11; t.TextXAlignment = Enum.TextXAlignment.Left
+    t.TextYAlignment = Enum.TextYAlignment.Center; t.TextWrapped = true; t.Parent = card
+    return wrapper, t
 end
 
 -- ============================================================
@@ -32469,12 +32240,12 @@ end
 -- MAIN
 -- ============================================================
 builders["Main"] = function(page)
-    addToggleButton(page, "Auto Steal", "Steals eggs matching your filters and banks them.", CFG.AutoSteal == true, 1, function(v)
+    addToggle(page, "Auto Steal", "Steals eggs matching your filters and banks them.", CFG.AutoSteal == true, 1, function(v)
         CFG.AutoSteal = v
         callG("__BabisV4EggRuntime", "setEnabled", v)
         if type(genv().__BabisV4SetStealDeclutter) == "function" then pcall(genv().__BabisV4SetStealDeclutter, v) end
     end)
-    addSelectCard(page, "Steal Mode", "High Speed (Fly) is fastest. Low Speed is safer.",
+    addSelect(page, "Steal Mode", "High Speed (Fly) is fastest. Low Speed is safer.",
         {"Low Speed User", "High Speed User", "High Speed User (Fly)"}, 3, 2, function(opt)
             local mode = "Fly"; local aerial = false
             if opt == "Low Speed User" then mode = "Instant" end
@@ -32482,56 +32253,56 @@ builders["Main"] = function(page)
             CFG.StealMode = mode; CFG.FlyAerial = aerial
             callG("__BabisV4EggRuntime", "setStealMode", mode, aerial)
         end)
-    addSliderCard(page, "Steal Speed", "500-1000.", 500, 1000, 600, 3, function(v)
+    addSlider(page, "Steal Speed", "500-1000.", 500, 1000, 600, 3, function(v)
         local scaled = math.floor(v / 10 + 0.5)
         CFG.TweenSpeedMultiplier = scaled
         callG("__BabisV4EggRuntime", "setSpeed", scaled)
     end)
-    addSliderCard(page, "Hold Seconds", "1-10. How long to hold on capture.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v)
+    addSlider(page, "Hold Seconds", "1-10.", 1, 10, CFG.StealHoldSeconds or 5, 4, function(v)
         CFG.StealHoldSeconds = v
     end)
-    addSelectCard(page, "Steal Priority", "Which egg to prioritize.",
+    addSelect(page, "Steal Priority", "Which egg to prioritize.",
         {"Rarity", "Highest Value", "Heaviest"}, 1, 5, function(opt)
             CFG.StealPriority = opt
             callG("__BabisV4EggRuntime", "setHighestValueFirst", opt == "Highest Value")
             callG("__BabisV4EggRuntime", "setHeaviestFirst", opt == "Heaviest")
         end)
-    addToggleButton(page, "Help Friend", "Drops the egg just before the safe line for a friend.", CFG.HelpFriend == true, 6, function(v)
+    addToggle(page, "Help Friend", "Drops the egg just before the safe line.", CFG.HelpFriend == true, 6, function(v)
         CFG.HelpFriend = v
     end)
-    addToggleButton(page, "Auto Index", "Also steals eggs missing from the Pet Index.", CFG.AutoIndex == true, 7, function(v)
+    addToggle(page, "Auto Index", "Also steals eggs missing from the Pet Index.", CFG.AutoIndex == true, 7, function(v)
         CFG.AutoIndex = v
         callG("__BabisV4EggRuntime", "setIndexObjective", v)
     end)
-    addToggleButton(page, "Aura Bat", "Automatically swings at nearby players.", CFG.GodMode == true, 8, function(v)
+    addToggle(page, "Aura Bat", "Auto-swings at nearby players.", CFG.GodMode == true, 8, function(v)
         CFG.GodMode = v
         callG("__BabisV4GodMode", "setEnabled", v)
     end)
-    addToggleButton(page, "Anti Guard Knockback", "Cancels the Forest guard knockback.", CFG.AntiGuardKnockback == true, 9, function(v)
+    addToggle(page, "Anti Guard Knockback", "Cancels the Forest guard knockback.", CFG.AntiGuardKnockback == true, 9, function(v)
         CFG.AntiGuardKnockback = v
         callG("__BabisV4AntiGuard", "setEnabled", v)
     end)
-    addInputCard(page, "Egg Name Filter", "Comma-separated names. Blank = any.",
+    addInput(page, "Egg Name Filter", "Comma-separated names. Blank = any.",
         "Forest Egg, Lava Egg", joinList(CFG.StealNamesFilter), 10, function(v)
             setEggFilter("StealNamesFilter", "names", "name", v)
         end)
-    addInputCard(page, "Rarity Filter", "Comma-separated rarities.",
+    addInput(page, "Rarity Filter", "Comma-separated rarities.",
         "Mythic, Secret, Eternal", joinList(CFG.StealRarities), 11, function(v)
             setEggFilter("StealRarities", "rarities", "rarity", v)
         end)
-    addInputCard(page, "Area Filter", "Comma-separated areas.",
+    addInput(page, "Area Filter", "Comma-separated areas.",
         "Forest, Desert, Cosmic", joinList(CFG.StealAreas), 12, function(v)
             setEggFilter("StealAreas", "areas", "area", v)
         end)
-    addInputCard(page, "Mutation Filter", "Comma-separated mutations.",
+    addInput(page, "Mutation Filter", "Comma-separated mutations.",
         "Golden, Rainbow", joinList(CFG.StealMutations), 13, function(v)
             setEggFilter("StealMutations", "mutations", "mutation", v)
         end)
-    addInputCard(page, "Minimum Value per Second", "Accepts k / m / b.", "500k", "", 14, function(v)
+    addInput(page, "Minimum Value per Second", "Accepts k / m / b.", "500k", "", 14, function(v)
         local n = parseMoney(v); CFG.StealMinValue = n
         callG("__BabisV4EggRuntime", "setMinValuePerSec", n)
     end)
-    addInputCard(page, "Minimum Weight (kg)", "0 = no weight filter.", "12000", tostring(CFG.StealMinWeight or 0), 15, function(v)
+    addInput(page, "Minimum Weight (kg)", "0 = no weight filter.", "12000", tostring(CFG.StealMinWeight or 0), 15, function(v)
         local n = tonumber(tostring(v or ""):gsub("[^%d%.]", "")) or 0
         CFG.StealMinWeight = n
         callG("__BabisV4EggRuntime", "setMinWeightKg", n)
@@ -32642,7 +32413,7 @@ builders["Prediction"] = function(page)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, width, 0, 38); btn.LayoutOrder = order
         btn.BackgroundColor3 = BG_CARD; btn.Text = text
-        btn.TextColor3 = ACCENT_ORANGE; btn.Font = FONT_STRONG; btn.TextSize = 13
+        btn.TextColor3 = ACCENT_ORANGE; btn.Font = FONT_STRONG; btn.TextSize = 12
         btn.AutoButtonColor = false; btn.Parent = filterRow
         local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = btn
         local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(105,72,48); s.Thickness = 1; s.Parent = btn
@@ -32805,15 +32576,13 @@ builders["Prediction"] = function(page)
         local iconFrame = Instance.new("Frame")
         iconFrame.Size = UDim2.new(0, 44, 0, 44); iconFrame.Position = UDim2.new(0, 42, 0.5, -22)
         iconFrame.BackgroundColor3 = Color3.fromRGB(35, 22, 14)
-        iconFrame.BackgroundTransparency = 0.25; iconFrame.BorderSizePixel = 0
-        iconFrame.Parent = row
+        iconFrame.BackgroundTransparency = 0.25; iconFrame.BorderSizePixel = 0; iconFrame.Parent = row
         local ifc = Instance.new("UICorner"); ifc.CornerRadius = UDim.new(0, 8); ifc.Parent = iconFrame
         local ifs = Instance.new("UIStroke"); ifs.Color = info.color or ACCENT_ORANGE
         ifs.Thickness = 1; ifs.Transparency = 0.5; ifs.Parent = iconFrame
         if info.image and info.image ~= "" then
             local icon = Instance.new("ImageLabel")
-            icon.Size = UDim2.new(1, -8, 1, -8)
-            icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+            icon.Size = UDim2.new(1, -8, 1, -8); icon.Position = UDim2.new(0.5, 0, 0.5, 0)
             icon.AnchorPoint = Vector2.new(0.5, 0.5); icon.BackgroundTransparency = 1
             icon.ScaleType = Enum.ScaleType.Fit; icon.Image = info.image; icon.Parent = iconFrame
         else
@@ -32887,38 +32656,31 @@ builders["Prediction"] = function(page)
         end
     end)
 
-    addClickButton(page, "Egg Checker", "Opens the classic manual picker.",
-        "rbxassetid://7733960981", 10, function()
-            local p = genv().__BabisV4Panels
-            if p and p.openChecker then p.openChecker() end
-        end)
-    addClickButton(page, "Spawn Analyst", "Global spawn tracker + timeline.",
-        "rbxassetid://8997386861", 11, function()
-            local p = genv().__BabisV4Panels
-            if p and p.openAnalyst then p.openAnalyst() end
-        end)
-    addClickButton(page, "Egg Logs", "Live feed of spawned eggs.",
-        "rbxassetid://7733793319", 12, function()
-            local p = genv().__BabisV4Panels; if p and p.openLogs then p.openLogs() end
-        end)
-    addClickButton(page, "Egg Board", "Sortable list of current eggs.",
-        "rbxassetid://7743869612", 13, function()
-            local p = genv().__BabisV4Panels; if p and p.openBoard then p.openBoard() end
-        end)
-    addClickButton(page, "Inventory & Base", "Pets, eggs, and plot status.",
-        "rbxassetid://7734056813", 14, function()
-            local p = genv().__BabisV4Panels; if p and p.openInventory then p.openInventory() end
-        end)
-    addClickButton(page, "Open All Panels", "Opens every panel at once.",
-        "rbxassetid://7743866903", 15, function()
-            local p = genv().__BabisV4Panels; if p and p.openAll then p.openAll() end
-        end)
-
-    addToggleButton(page, "Egg ESP", "Label over every egg.", CFG.EggESP == true, 20, function(v)
+    addButton(page, "Egg Checker", "Opens the classic manual picker.", 10, function()
+        local p = getgenv().__BabisV4Panels
+        if p and p.openChecker then p.openChecker() else Notify("Prediction", "Panel unavailable") end
+    end)
+    addButton(page, "Spawn Analyst", "Global spawn tracker + timeline.", 11, function()
+        local p = getgenv().__BabisV4Panels
+        if p and p.openAnalyst then p.openAnalyst() else Notify("Prediction", "Panel unavailable") end
+    end)
+    addButton(page, "Egg Logs", "Live feed of spawned eggs.", 12, function()
+        local p = getgenv().__BabisV4Panels; if p and p.openLogs then p.openLogs() end
+    end)
+    addButton(page, "Egg Board", "Sortable list of current eggs.", 13, function()
+        local p = getgenv().__BabisV4Panels; if p and p.openBoard then p.openBoard() end
+    end)
+    addButton(page, "Inventory & Base", "Pets, eggs, and plot status.", 14, function()
+        local p = getgenv().__BabisV4Panels; if p and p.openInventory then p.openInventory() end
+    end)
+    addButton(page, "Open All Panels", "Opens every panel at once.", 15, function()
+        local p = getgenv().__BabisV4Panels; if p and p.openAll then p.openAll() end
+    end)
+    addToggle(page, "Egg ESP", "Label over every egg.", CFG.EggESP == true, 20, function(v)
         CFG.EggESP = v
         callG("__BabisV4EggRuntime", "setEggEsp", v)
     end)
-    addToggleButton(page, "Backpack Value/s", "Show $/s on each inventory slot.", CFG.BackpackRateEsp == true, 21, function(v)
+    addToggle(page, "Backpack Value/s", "Show $/s on each inventory slot.", CFG.BackpackRateEsp == true, 21, function(v)
         CFG.BackpackRateEsp = v
         callG("__BabisV4ServerHop", "setBackpackRates", v)
     end)
@@ -32928,18 +32690,18 @@ end
 -- VISUALS
 -- ============================================================
 builders["Visuals"] = function(page)
-    addToggleButton(page, "Noclip", "Walk through walls.", CFG.Noclip == true, 1, function(v)
+    addToggle(page, "Noclip", "Walk through walls.", CFG.Noclip == true, 1, function(v)
         CFG.Noclip = v
         callG("__BabisV4Roaming", "setNoclip", v)
     end)
-    addToggleButton(page, "Botting Mode", "Black screen, 3D off.", CFG.BottingMode == true, 2, function(v)
+    addToggle(page, "Botting Mode", "Black screen, 3D off.", CFG.BottingMode == true, 2, function(v)
         CFG.BottingMode = v
         callG("__BabisV4Roaming", "setBottingMode", v)
     end)
-    addToggleButton(page, "Anti Cutscene", "Closes cutscenes.", CFG.AntiCutscene == true, 3, function(v)
+    addToggle(page, "Anti Cutscene", "Closes cutscenes.", CFG.AntiCutscene == true, 3, function(v)
         CFG.AntiCutscene = v
     end)
-    addToggleButton(page, "Butterfly ESP", "Butterfly tier + distance.", CFG.ButterflyEsp == true, 4, function(v)
+    addToggle(page, "Butterfly ESP", "Butterfly tier + distance.", CFG.ButterflyEsp == true, 4, function(v)
         CFG.ButterflyEsp = v
     end)
 end
@@ -32948,276 +32710,275 @@ end
 -- AUTO
 -- ============================================================
 builders["Auto"] = function(page)
-    addToggleButton(page, "Auto Place Egg", "Places eggs on your plot.", CFG.AutoPlace == true, 1, function(v)
+    addToggle(page, "Auto Place Egg", "Places eggs on your plot.", CFG.AutoPlace == true, 1, function(v)
         CFG.AutoPlace = v
-        local l = genv().__BabisV4Loops
-        if v and l and l.autoPlace then task.spawn(l.autoPlace) end
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.autoPlace) == "function" then task.spawn(l.autoPlace) end
     end)
-    addInputCard(page, "Place Rarity Filter", "Rarities (comma-separated).", "Mythic, Secret",
+    addInput(page, "Place Rarity Filter", "Rarities (comma-separated).", "Mythic, Secret",
         joinList(CFG.PlaceRarities), 2, function(v) CFG.PlaceRarities = splitList(v) end)
-    addToggleButton(page, "Auto Hatch Egg", "Hatches ready eggs.", CFG.AutoHatch == true, 3, function(v)
+    addToggle(page, "Auto Hatch Egg", "Hatches ready eggs.", CFG.AutoHatch == true, 3, function(v)
         CFG.AutoHatch = v
-        local l = genv().__BabisV4Loops
-        if v and l and l.autoHatch then task.spawn(l.autoHatch) end
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.autoHatch) == "function" then task.spawn(l.autoHatch) end
     end)
-    addSelectCard(page, "Mutation Type", "Scrambled or Fractured.", {"Scrambled", "Fractured"}, 1, 4, function(o)
+    addSelect(page, "Mutation Type", "Scrambled or Fractured.", {"Scrambled", "Fractured"}, 1, 4, function(o)
         CFG.MutationChoice = o
     end)
-    addInputCard(page, "Mutate Species", "Species (comma-separated).", "Forest Egg, Lava Egg",
+    addInput(page, "Mutate Species", "Species (comma-separated).", "Forest Egg, Lava Egg",
         joinList(CFG.MutationSpecies), 5, function(v) CFG.MutationSpecies = splitList(v) end)
-    addInputCard(page, "Mutate Rarities", "Rarities (comma-separated).", "Epic, Mythic",
+    addInput(page, "Mutate Rarities", "Rarities (comma-separated).", "Epic, Mythic",
         joinList(CFG.MutationRarities), 6, function(v) CFG.MutationRarities = splitList(v) end)
-    addToggleButton(page, "Retry Until Mutated", "Keep applying until success.", CFG.MutationRetry ~= false, 7, function(v)
+    addToggle(page, "Retry Until Mutated", "Keep applying until success.", CFG.MutationRetry ~= false, 7, function(v)
         CFG.MutationRetry = v
     end)
-    addToggleButton(page, "Auto Apply Mutation", "Auto-apply mutation.", CFG.AutoMutation == true, 8, function(v)
+    addToggle(page, "Auto Apply Mutation", "Auto-apply mutation.", CFG.AutoMutation == true, 8, function(v)
         CFG.AutoMutation = v
-        local l = genv().__BabisV4Loops
-        if v and l and l.autoMutation then task.spawn(l.autoMutation) end
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.autoMutation) == "function" then task.spawn(l.autoMutation) end
     end)
-    addClickButton(page, "Apply Mutation Now", "Run one pass now.", "rbxassetid://8997388430", 9, function()
-        local l = genv().__BabisV4Loops
-        if l and l.mutationSweep then task.spawn(l.mutationSweep) end
+    addButton(page, "Apply Mutation Now", "Run one pass now.", 9, function()
+        local l = getgenv().__BabisV4Loops
+        if l and type(l.mutationSweep) == "function" then task.spawn(l.mutationSweep) else Notify("Mutation", "Runtime unavailable") end
     end)
-    addToggleButton(page, "Auto Sell Pet", "Sells pets by filter.", CFG.AutoSell == true, 10, function(v)
+    addToggle(page, "Auto Sell Pet", "Sells pets by filter.", CFG.AutoSell == true, 10, function(v)
         CFG.AutoSell = v
-        local l = genv().__BabisV4Loops
-        if v and l and l.autoSellPet then l.autoSellPet() end
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.autoSellPet) == "function" then l.autoSellPet() end
     end)
-    addInputCard(page, "Pet Names to Sell", "Names (comma-separated).", "Cat, Dog",
+    addInput(page, "Pet Names to Sell", "Names (comma-separated).", "Cat, Dog",
         joinList(CFG.SellNames), 11, function(v) CFG.SellNames = splitList(v) end)
-    addInputCard(page, "Pet Rarities to Sell", "Rarities (comma-separated).", "Common, Uncommon",
+    addInput(page, "Pet Rarities to Sell", "Rarities (comma-separated).", "Common, Uncommon",
         joinList(CFG.SellRarities), 12, function(v) CFG.SellRarities = splitList(v) end)
-    addInputCard(page, "Pet Max $/s", "Blank = no limit.", "100k, 2m", "", 13, function(v)
+    addInput(page, "Pet Max $/s", "Blank = no limit.", "100k, 2m", "", 13, function(v)
         CFG.SellPetMaxRate = parseMoney(v)
     end)
-    addToggleButton(page, "Auto Sell Egg", "Sells unplaced eggs.", CFG.AutoSellEgg == true, 14, function(v)
+    addToggle(page, "Auto Sell Egg", "Sells unplaced eggs.", CFG.AutoSellEgg == true, 14, function(v)
         CFG.AutoSellEgg = v
-        local l = genv().__BabisV4Loops
-        if v and l and l.autoSellEgg then l.autoSellEgg() end
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.autoSellEgg) == "function" then l.autoSellEgg() end
     end)
-    addInputCard(page, "Egg Rarities to Sell", "Rarities (comma-separated).", "Common, Rare",
+    addInput(page, "Egg Rarities to Sell", "Rarities (comma-separated).", "Common, Rare",
         joinList(CFG.SellEggRarities), 15, function(v) CFG.SellEggRarities = splitList(v) end)
-    addInputCard(page, "Egg Max $/s", "Blank = no limit.", "100k", "", 16, function(v)
+    addInput(page, "Egg Max $/s", "Blank = no limit.", "100k", "", 16, function(v)
         CFG.SellEggMaxRate = parseMoney(v)
     end)
-    addToggleButton(page, "Auto Favorite", "Favorites matching pets.", CFG.AutoFavorite == true, 17, function(v)
+    addToggle(page, "Auto Favorite", "Favorites matching pets.", CFG.AutoFavorite == true, 17, function(v)
         CFG.AutoFavorite = v
     end)
-    addSelectCard(page, "Favorite Rule", "Rarity or Species.", {"Rarity", "Species"}, 1, 18, function(o)
+    addSelect(page, "Favorite Rule", "Rarity or Species.", {"Rarity", "Species"}, 1, 18, function(o)
         CFG.FavMode = o
     end)
-    addInputCard(page, "Favorite Rarities", "Rarities (comma-separated).", "Legendary, Secret",
+    addInput(page, "Favorite Rarities", "Rarities (comma-separated).", "Legendary, Secret",
         joinList(CFG.FavRarities), 19, function(v) CFG.FavRarities = splitList(v) end)
-    addInputCard(page, "Favorite Species", "Species (comma-separated).", "Cat, Dog",
+    addInput(page, "Favorite Species", "Species (comma-separated).", "Cat, Dog",
         joinList(CFG.FavSpecies), 20, function(v) CFG.FavSpecies = splitList(v) end)
-    addClickButton(page, "Unfavorite All", "Clear favorites on all pets.", "rbxassetid://7734084236", 21, function()
-        local b = genv().__BabisV4PetBarn
+    addButton(page, "Unfavorite All", "Clear favorites on all pets.", 21, function()
+        local b = getgenv().__BabisV4PetBarn
         if b and b.unfavoriteAll then
             local ok, n = pcall(b.unfavoriteAll)
             Notify("Favorite", ok and ((n or 0) .. " pets unfavorited") or "Failed")
-        end
+        else Notify("Favorite", "Runtime unavailable") end
     end)
-    addToggleButton(page, "Auto Fuse Pets", "Feeds 3 pets into fusion.", CFG.AutoFusePets == true, 22, function(v)
+    addToggle(page, "Auto Fuse Pets", "Feeds 3 pets into fusion.", CFG.AutoFusePets == true, 22, function(v)
         CFG.AutoFusePets = v
     end)
-    addSelectCard(page, "Fusion Rule", "Any or Selected Species.", {"Any Species", "Selected Species"}, 1, 23, function(o)
+    addSelect(page, "Fusion Rule", "Any or Selected Species.", {"Any Species", "Selected Species"}, 1, 23, function(o)
         CFG.FuseSelectedOnly = o == "Selected Species"
     end)
-    addInputCard(page, "Fusion Rarities", "Rarities (comma-separated).", "Common, Rare",
+    addInput(page, "Fusion Rarities", "Rarities (comma-separated).", "Common, Rare",
         joinList(CFG.FuseRarities), 24, function(v) CFG.FuseRarities = splitList(v) end)
-    addInputCard(page, "Fusion Species", "Species (comma-separated).", "Cat, Dog",
+    addInput(page, "Fusion Species", "Species (comma-separated).", "Cat, Dog",
         joinList(CFG.FuseSpecies), 25, function(v) CFG.FuseSpecies = splitList(v) end)
-    addToggleButton(page, "Auto Equip Best", "Equips best pets.", CFG.AutoEquipBest == true, 26, function(v)
+    addToggle(page, "Auto Equip Best", "Equips best pets.", CFG.AutoEquipBest == true, 26, function(v)
         CFG.AutoEquipBest = v
     end)
-    addToggleButton(page, "Collect Offline Income", "Claims offline income.", CFG.AutoClaimOffline == true, 27, function(v)
+    addToggle(page, "Collect Offline Income", "Claims offline income.", CFG.AutoClaimOffline == true, 27, function(v)
         CFG.AutoClaimOffline = v
     end)
-    addToggleButton(page, "Auto Upgrade Base", "Buys next base tier.", CFG.AutoBaseUpgrade == true, 28, function(v)
+    addToggle(page, "Auto Upgrade Base", "Buys next base tier.", CFG.AutoBaseUpgrade == true, 28, function(v)
         CFG.AutoBaseUpgrade = v
     end)
-    addClickButton(page, "Upgrade Base Now", "Run once.", "rbxassetid://7733671663", 29, function()
-        local u = genv().__BabisV4Upgrades
+    addButton(page, "Upgrade Base Now", "Run once.", 29, function()
+        local u = getgenv().__BabisV4Upgrades
         if u and u.upgradeBase then
             local ok, r, reason = pcall(u.upgradeBase)
             Notify("Base", ok and (r and "Base upgraded" or tostring(reason)) or tostring(r))
-        end
+        else Notify("Base", "Runtime unavailable") end
     end)
-    addToggleButton(page, "Auto Claim Almanac", "Claims Pet Index rewards.", CFG.AutoClaimAlmanac == true, 30, function(v)
+    addToggle(page, "Auto Claim Almanac", "Claims Pet Index rewards.", CFG.AutoClaimAlmanac == true, 30, function(v)
         CFG.AutoClaimAlmanac = v
     end)
 end
 
 -- ============================================================
--- EVENTS — Everything in one place
+-- EVENTS
 -- ============================================================
 builders["Events"] = function(page)
-    local btf = genv().__BabisV4ButterflyRuntime
-    local modes = btf and btf.modeOptions and btf.modeOptions() or {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
-    local recipes = btf and btf.recipeOptions and btf.recipeOptions() or {"All Recipes", "For Essence (shortfall only)"}
+    local btf = getgenv().__BabisV4ButterflyRuntime
+    local modes = {"Tween to Butterfly", "Stand", "Zigzag", "Circle"}
+    local recipes = {"All Recipes", "For Essence (shortfall only)", "Emerald to Sapphire", "Sapphire to Amethyst", "Amethyst to Radiant"}
+    if btf and type(btf.modeOptions) == "function" then
+        local ok, r = pcall(btf.modeOptions)
+        if ok and type(r) == "table" and #r > 0 then modes = r end
+    end
+    if btf and type(btf.recipeOptions) == "function" then
+        local ok, r = pcall(btf.recipeOptions)
+        if ok and type(r) == "table" and #r > 0 then recipes = r end
+    end
 
-    -- ===== STATUS CARD =====
-    local statusFrame = Instance.new("Frame")
-    statusFrame.Size = UDim2.new(1, 0, 0, 96)
-    statusFrame.BackgroundColor3 = BG_CARD
-    statusFrame.BorderSizePixel = 0
-    statusFrame.LayoutOrder = 0
-    statusFrame.Parent = page
-    local stc = Instance.new("UICorner"); stc.CornerRadius = UDim.new(0, 10); stc.Parent = statusFrame
-    local sts = Instance.new("UIStroke"); sts.Color = Color3.fromRGB(105,72,48); sts.Thickness = 1; sts.Parent = statusFrame
-    local statusText = Instance.new("TextLabel")
-    statusText.Size = UDim2.new(1, -24, 1, 0); statusText.Position = UDim2.new(0, 12, 0, 0)
-    statusText.BackgroundTransparency = 1
-    statusText.Text = "Loading event status..."
-    statusText.TextColor3 = Color3.fromRGB(200, 185, 170)
-    statusText.Font = FONT_MAIN; statusText.TextSize = 11
-    statusText.TextXAlignment = Enum.TextXAlignment.Left
-    statusText.TextYAlignment = Enum.TextYAlignment.Center
-    statusText.TextWrapped = true; statusText.Parent = statusFrame
-
+    local _, statusText = addInfoCard(page, "Loading event status...", 0)
     task.spawn(function()
         while gui.Parent and statusText and statusText.Parent do
             task.wait(2)
-            if statusText and statusText.Parent then
-                pcall(function()
-                    local btf2 = genv().__BabisV4ButterflyRuntime
-                    local scramble = genv().__BabisV4ScrambleRuntime
-                    local trade = genv().__BabisV4ScrambleTradeIn
-                    local boss = genv().__BabisV4ScrambleBoss
-                    local snap = btf2 and btf2.snap or {}
-                    local btfStatus = btf2 and tostring(btf2.status or "Idle") or "Unavailable"
-                    local btfLive = snap.active and "LIVE" or (snap.nextIn and ("in " .. math.floor(snap.nextIn/60) .. "m") or "idle")
-                    local btfNet = snap.net and "Net OK" or "No net"
-                    local scrStatus = scramble and tostring(scramble.status or "Idle") or "—"
-                    local tradeStatus = trade and tostring(trade.status or "Disabled") or "—"
-                    local bossStatus = boss and tostring(boss.status or "Idle") or "—"
-                    statusText.Text = string.format(
-                        "Butterfly: %s (%s) · %s\nScramble: %s · Trade-In: %s\nBoss: %s",
-                        btfStatus, btfLive, btfNet, scrStatus, tradeStatus, bossStatus)
-                end)
-            end
+            pcall(function()
+                local b = getgenv().__BabisV4ButterflyRuntime
+                local scr = getgenv().__BabisV4ScrambleRuntime
+                local tr = getgenv().__BabisV4ScrambleTradeIn
+                local boss = getgenv().__BabisV4ScrambleBoss
+                local snap = b and b.snap or {}
+                local bS = b and tostring(b.status or "Idle") or "Unavailable"
+                local bL = snap.active and "LIVE" or (snap.nextIn and ("in " .. math.floor(snap.nextIn/60) .. "m") or "idle")
+                local bN = snap.net and "Net OK" or "No net"
+                local sS = scr and tostring(scr.status or "Idle") or "-"
+                local tS = tr and tostring(tr.status or "Disabled") or "-"
+                local bB = boss and tostring(boss.status or "Idle") or "-"
+                statusText.Text = string.format(
+                    "Butterfly: %s (%s) · %s\nScramble: %s · Trade-In: %s\nBoss: %s",
+                    bS, bL, bN, sS, tS, bB)
+            end)
         end
     end)
 
-    -- ===== BUTTERFLY BLOOM =====
-    addToggleButton(page, "Butterfly · Auto Claim Net", "Claims the free net from the Enchanted Tree.",
-        CFG.ButterflyAutoNet == true, 1, function(v) CFG.ButterflyAutoNet = v end)
-    addToggleButton(page, "Butterfly · Auto Catch", "Catches butterflies during every Bloom.",
-        CFG.ButterflyAutoCatch == true, 2, function(v) CFG.ButterflyAutoCatch = v end)
-    addSelectCard(page, "Butterfly · Catch Mode", "Tween · Stand · Zigzag · Circle.",
-        modes, 1, 3, function(o) if btf and btf.setMode then pcall(btf.setMode, o) end end)
-    addInputCard(page, "Butterfly · Tiers to Catch", "Tiers (comma-separated). Blank = all.",
+    -- Butterfly
+    addToggle(page, "Butterfly · Auto Claim Net", "Claims the free net from the Enchanted Tree.", CFG.ButterflyAutoNet == true, 1, function(v)
+        CFG.ButterflyAutoNet = v
+    end)
+    addToggle(page, "Butterfly · Auto Catch", "Catches butterflies during every Bloom.", CFG.ButterflyAutoCatch == true, 2, function(v)
+        CFG.ButterflyAutoCatch = v
+    end)
+    addSelect(page, "Butterfly · Catch Mode", "Tween · Stand · Zigzag · Circle.", modes, 1, 3, function(o)
+        if btf and type(btf.setMode) == "function" then pcall(btf.setMode, o) end
+    end)
+    addInput(page, "Butterfly · Tiers", "Golden, Purple, Blue, Green (comma-separated).",
         "Golden, Purple, Blue, Green", joinList(CFG.ButterflyTiers), 4, function(v)
-            local l = splitList(v); CFG.ButterflyTiers = l
-            if btf and btf.setTiers then pcall(btf.setTiers, l) end
+            CFG.ButterflyTiers = splitList(v)
+            if btf and type(btf.setTiers) == "function" then pcall(btf.setTiers, CFG.ButterflyTiers) end
         end)
-    addToggleButton(page, "Butterfly · ESP", "Show butterfly tier + distance.",
-        CFG.ButterflyEsp == true, 5, function(v) CFG.ButterflyEsp = v end)
-    addToggleButton(page, "Butterfly · Auto Trade Up", "Trades butterflies at the machine inside the tree.",
-        CFG.ButterflyAutoTrade == true, 6, function(v) CFG.ButterflyAutoTrade = v end)
-    addSelectCard(page, "Butterfly · Trade Recipe", "Recipe used by Auto Trade Up.",
-        recipes, 1, 7, function(o) if btf and btf.setRecipe then pcall(btf.setRecipe, o) end end)
-    addToggleButton(page, "Butterfly · Auto Craft Essence", "Crafts Enchanted Essence when recipe is full.",
-        CFG.ButterflyAutoCraft == true, 8, function(v) CFG.ButterflyAutoCraft = v end)
-    addClickButton(page, "Butterfly · Claim Net Now", "Claim the net now.",
-        "rbxassetid://7734042071", 9, function()
-            if btf and btf.claimNet then task.spawn(function()
+    addToggle(page, "Butterfly · ESP", "Show tier + distance in the Bloom.", CFG.ButterflyEsp == true, 5, function(v)
+        CFG.ButterflyEsp = v
+    end)
+    addToggle(page, "Butterfly · Auto Trade Up", "Trades butterflies at the machine inside the tree.", CFG.ButterflyAutoTrade == true, 6, function(v)
+        CFG.ButterflyAutoTrade = v
+    end)
+    addSelect(page, "Butterfly · Trade Recipe", "Recipe used by Auto Trade Up.", recipes, 1, 7, function(o)
+        if btf and type(btf.setRecipe) == "function" then pcall(btf.setRecipe, o) end
+    end)
+    addToggle(page, "Butterfly · Auto Craft Essence", "Crafts Enchanted Essence when recipe is full.", CFG.ButterflyAutoCraft == true, 8, function(v)
+        CFG.ButterflyAutoCraft = v
+    end)
+    addButton(page, "Butterfly · Claim Net Now", "Runs claimNet once.", 9, function()
+        if btf and type(btf.claimNet) == "function" then
+            task.spawn(function()
                 btf.manual = true
                 local ok, r, reason = pcall(btf.claimNet); btf.manual = false
                 Notify("Butterfly", ok and (r and "Net claimed" or tostring(reason)) or tostring(r))
-            end) else Notify("Butterfly", "Runtime unavailable") end
-        end)
-    addClickButton(page, "Butterfly · Trade Up Now", "Run trade recipe once.",
-        "rbxassetid://7734051052", 10, function()
-            if btf and btf.tradeUp then task.spawn(function()
+            end)
+        else Notify("Butterfly", "Runtime unavailable") end
+    end)
+    addButton(page, "Butterfly · Trade Up Now", "Runs tradeUp once.", 10, function()
+        if btf and type(btf.tradeUp) == "function" then
+            task.spawn(function()
                 btf.manual = true
                 local ok, r, reason = pcall(btf.tradeUp); btf.manual = false
                 Notify("Butterfly", ok and (r and ("Trades: " .. tostring(reason or 0))) or tostring(reason))
-            end) else Notify("Butterfly", "Runtime unavailable") end
-        end)
-    addClickButton(page, "Butterfly · Craft Essence Now", "Craft Essence once.",
-        "rbxassetid://8997388430", 11, function()
-            if btf and btf.craft then task.spawn(function()
+            end)
+        else Notify("Butterfly", "Runtime unavailable") end
+    end)
+    addButton(page, "Butterfly · Craft Essence Now", "Runs craft once.", 11, function()
+        if btf and type(btf.craft) == "function" then
+            task.spawn(function()
                 btf.manual = true
                 local ok, r, reason = pcall(btf.craft); btf.manual = false
                 Notify("Butterfly", ok and (r and ("Crafted: " .. tostring(reason or 0))) or tostring(reason))
-            end) else Notify("Butterfly", "Runtime unavailable") end
-        end)
-    addClickButton(page, "Butterfly · Show Status", "Show current Bloom status.",
-        "rbxassetid://7733964719", 12, function()
-            local btf2 = genv().__BabisV4ButterflyRuntime
-            local snap = btf2 and btf2.snap or {}
-            Notify("Butterfly Bloom",
-                tostring(btf2 and btf2.status or "Unavailable") .. " | " ..
-                tostring(snap.active and "Live" or "Not live") .. " | " ..
-                tostring(snap.net and "Net owned" or "No net"))
-        end)
+            end)
+        else Notify("Butterfly", "Runtime unavailable") end
+    end)
+    addButton(page, "Butterfly · Show Status", "Show current Bloom status.", 12, function()
+        local b = getgenv().__BabisV4ButterflyRuntime
+        local snap = b and b.snap or {}
+        Notify("Butterfly Bloom",
+            tostring(b and b.status or "Unavailable") .. " | " ..
+            tostring(snap.active and "Live" or "Not live") .. " | " ..
+            tostring(snap.net and "Net owned" or "No net"))
+    end)
 
-    -- ===== DR SCRAMBLE =====
-    addToggleButton(page, "Scramble · Auto Buy", "Buys selected shop items with samples.",
-        CFG.ScrambleAutoBuy == true, 13, function(v) CFG.ScrambleAutoBuy = v end)
-    addInputCard(page, "Scramble · Shop Buy List", "Shop labels (comma-separated).",
-        "Item A, Item B", joinList(CFG.ScrambleBuyList), 14, function(v) CFG.ScrambleBuyList = splitList(v) end)
-    addToggleButton(page, "Scramble · Auto Trade-In", "Sacrifices pets for Dr Scramble.",
-        CFG.ScrambleTradeInTrade == true, 15, function(v) CFG.ScrambleTradeInTrade = v end)
-    addToggleButton(page, "Scramble · Auto Free Reroll", "Uses free reroll when missing pets.",
-        CFG.ScrambleTradeInReroll == true, 16, function(v) CFG.ScrambleTradeInReroll = v end)
-    addInputCard(page, "Scramble · Banner Filter", "Target banners (comma-separated).",
-        "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 17, function(v)
+    -- Scramble
+    addToggle(page, "Scramble · Auto Buy", "Buys selected shop items with samples.", CFG.ScrambleAutoBuy == true, 20, function(v)
+        CFG.ScrambleAutoBuy = v
+    end)
+    addInput(page, "Scramble · Shop Buy List", "Item labels (comma-separated).", "Item A, Item B",
+        joinList(CFG.ScrambleBuyList), 21, function(v) CFG.ScrambleBuyList = splitList(v) end)
+    addToggle(page, "Scramble · Auto Trade-In", "Sacrifices pets for Dr Scramble.", CFG.ScrambleTradeInTrade == true, 22, function(v)
+        CFG.ScrambleTradeInTrade = v
+    end)
+    addToggle(page, "Scramble · Auto Free Reroll", "Uses a free reroll when missing pets.", CFG.ScrambleTradeInReroll == true, 23, function(v)
+        CFG.ScrambleTradeInReroll = v
+    end)
+    addInput(page, "Scramble · Banner Filter", "Target banners (comma-separated).",
+        "Biohazard Pets, Experimental Pets", joinList(CFG.ScrambleTradeInBanners), 24, function(v)
             CFG.ScrambleTradeInBanners = splitList(v)
         end)
-    addClickButton(page, "Scramble · Trade-In Once", "Run one trade-in.",
-        "rbxassetid://7734006080", 18, function()
-            local t = genv().__BabisV4ScrambleTradeIn
-            if t and t.tradeOnce then
-                local ok, r, reason = pcall(t.tradeOnce)
-                Notify("Scramble", ok and (r and "Trade complete" or tostring(reason)) or tostring(r))
-            else Notify("Scramble", "Runtime unavailable") end
+    addButton(page, "Scramble · Trade-In Once", "Runs tradeOnce once.", 25, function()
+        local t = getgenv().__BabisV4ScrambleTradeIn
+        if t and type(t.tradeOnce) == "function" then
+            local ok, r, reason = pcall(t.tradeOnce)
+            Notify("Scramble", ok and (r and "Trade complete" or tostring(reason)) or tostring(r))
+        else Notify("Scramble", "Runtime unavailable") end
+    end)
+    addButton(page, "Scramble · Use Free Reroll", "Runs reroll once.", 26, function()
+        local t = getgenv().__BabisV4ScrambleTradeIn
+        if t and type(t.reroll) == "function" then
+            local ok, r, reason = pcall(t.reroll)
+            Notify("Scramble", ok and (r and "Recipe rerolled" or tostring(reason)) or tostring(r))
+        else Notify("Scramble", "Runtime unavailable") end
+    end)
+    addButton(page, "Scramble · Open Lab UI", "Opens the in-game trade-in window.", 27, function()
+        pcall(function()
+            require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn")
         end)
-    addClickButton(page, "Scramble · Use Free Reroll", "Use one free reroll.",
-        "rbxassetid://7734051052", 19, function()
-            local t = genv().__BabisV4ScrambleTradeIn
-            if t and t.reroll then
-                local ok, r, reason = pcall(t.reroll)
-                Notify("Scramble", ok and (r and "Recipe rerolled" or tostring(reason)) or tostring(r))
-            else Notify("Scramble", "Runtime unavailable") end
-        end)
-    addClickButton(page, "Scramble · Open Lab UI", "Open the in-game trade-in window.",
-        "rbxassetid://7743866903", 20, function()
-            pcall(function() require(game:GetService("ReplicatedStorage").Client.Tabs).Activate("DrScrambleTradeIn") end)
-        end)
-    addToggleButton(page, "Scramble · Auto Boss", "Enter and fight the boss.",
-        CFG.ScrambleBossAuto == true, 21, function(v)
-            CFG.ScrambleBossAuto = v
-            callG("__BabisV4EggRuntime", "_reconcileScramblePortal")
-        end)
-    addClickButton(page, "Scramble · Show Status", "Show shop + trade-in status.",
-        "rbxassetid://7733964719", 22, function()
-            local shop = genv().__BabisV4ScrambleRuntime
-            local trade = genv().__BabisV4ScrambleTradeIn
-            local snap = shop and shop.snapshot and shop.snapshot()
-            Notify("Scramble",
-                tostring(shop and shop.status or "Unavailable") .. " | " ..
-                tostring(trade and trade.banner or (snap and snap.State and "Event active" or "Not active")))
-        end)
+        Notify("Scramble", "Tried to open lab UI")
+    end)
+    addToggle(page, "Scramble · Auto Boss", "Enter and fight the boss when live.", CFG.ScrambleBossAuto == true, 28, function(v)
+        CFG.ScrambleBossAuto = v
+        local egg = getgenv().__BabisV4EggRuntime
+        if egg and type(egg._reconcileScramblePortal) == "function" then pcall(egg._reconcileScramblePortal, egg) end
+    end)
+    addButton(page, "Scramble · Show Status", "Show shop + trade-in status.", 29, function()
+        local shop = getgenv().__BabisV4ScrambleRuntime
+        local trade = getgenv().__BabisV4ScrambleTradeIn
+        local snap = shop and type(shop.snapshot) == "function" and select(2, pcall(shop.snapshot)) or nil
+        Notify("Scramble",
+            tostring(shop and shop.status or "Unavailable") .. " | " ..
+            tostring(trade and trade.banner or (snap and snap.State and "Event active" or "Not active")))
+    end)
 
-    -- ===== CAPTURE THE EGG =====
-    addToggleButton(page, "Capture · Auto Steal Capture", "Grabs the event egg and holds it in a safe spot.",
-        CFG.AutoStealCapture == true, 23, function(v) CFG.AutoStealCapture = v end)
-    addToggleButton(page, "Capture · Fly For Capture", "Flies up and holds position after grabbing.",
-        CFG.FlyForCapture == true, 24, function(v)
-            CFG.FlyForCapture = v
-            callG("__BabisV4MovementExtras", "setFlyForCapture", v)
-        end)
+    -- Capture
+    addToggle(page, "Capture · Auto Steal Capture", "Grabs event egg and holds it in a safe spot.", CFG.AutoStealCapture == true, 30, function(v)
+        CFG.AutoStealCapture = v
+    end)
+    addToggle(page, "Capture · Fly For Capture", "Flies up and holds position after grabbing.", CFG.FlyForCapture == true, 31, function(v)
+        CFG.FlyForCapture = v
+        local mv = getgenv().__BabisV4MovementExtras
+        if mv and type(mv.setFlyForCapture) == "function" then pcall(mv.setFlyForCapture, mv, v) end
+    end)
 
-    -- ===== RING EVENT =====
-    addToggleButton(page, "Ring · Auto Ring Event", "Safe → Forest → Angels & Demons → back.",
-        CFG.AutoRingEvent == true, 25, function(v)
-            CFG.AutoRingEvent = v
-            local l = genv().__BabisV4Loops
-            if v and l and l.ringEvent then l.ringEvent() end
-        end)
+    -- Ring
+    addToggle(page, "Ring · Auto Ring Event", "Safe → Forest → Angels & Demons → back.", CFG.AutoRingEvent == true, 40, function(v)
+        CFG.AutoRingEvent = v
+        local l = getgenv().__BabisV4Loops
+        if v and l and type(l.ringEvent) == "function" then l.ringEvent() end
+    end)
 end
 
 -- ============================================================
@@ -33229,34 +32990,18 @@ builders["Players"] = function(page)
     pcall(function() EggState = require(RS.Client.EggState) end)
     pcall(function() Assets = require(RS.Data.Assets) end)
 
-    local headerCard = Instance.new("Frame")
-    headerCard.Size = UDim2.new(1, 0, 0, 46)
-    headerCard.BackgroundColor3 = BG_CARD
-    headerCard.BorderSizePixel = 0
-    headerCard.LayoutOrder = 0
-    headerCard.Parent = page
-    local hcc = Instance.new("UICorner"); hcc.CornerRadius = UDim.new(0, 10); hcc.Parent = headerCard
-    local hcs = Instance.new("UIStroke"); hcs.Color = Color3.fromRGB(105,72,48); hcs.Thickness = 1; hcs.Parent = headerCard
-    local headerLbl = Instance.new("TextLabel")
-    headerLbl.Size = UDim2.new(1, -28, 1, 0); headerLbl.Position = UDim2.new(0, 14, 0, 0)
-    headerLbl.BackgroundTransparency = 1
-    headerLbl.Text = "Reading players..."
-    headerLbl.TextColor3 = Color3.fromRGB(200, 185, 170)
-    headerLbl.Font = FONT_MAIN; headerLbl.TextSize = 13
-    headerLbl.TextXAlignment = Enum.TextXAlignment.Left
-    headerLbl.TextYAlignment = Enum.TextYAlignment.Center
-    headerLbl.Parent = headerCard
+    local _, headerLbl = addInfoCard(page, "Reading players...", 0)
 
-    addToggleButton(page, "Auto Steal From Players", "Chases and steals eggs from other players.",
+    addToggle(page, "Auto Steal From Players", "Chases and steals eggs from other players.",
         CFG.StealPlayers == true, 1, function(v)
             CFG.StealPlayers = v
             callG("__BabisV4PlayerSteal", "setEnabled", v)
         end)
-    addInputCard(page, "Target Rarities", "Rarities (comma-separated). Blank = uses Main filter.",
+    addInput(page, "Target Rarities", "Rarities (comma-separated). Blank = uses Main filter.",
         "Mythic, Secret", joinList(CFG.StealPlayerRarities), 2, function(v)
             CFG.StealPlayerRarities = splitList(v)
         end)
-    addInputCard(page, "Minimum Value", "Minimum $/s. Accepts k / m / b.", "500k", "", 3, function(v)
+    addInput(page, "Minimum Value", "Minimum $/s. Accepts k / m / b.", "500k", "", 3, function(v)
         CFG.StealPlayerMinValue = parseMoney(v)
     end)
 
@@ -33308,9 +33053,7 @@ builders["Players"] = function(page)
         for _, plr in ipairs(others) do
             local rec = carrierByUid[plr.UserId]
             local carrying = rec ~= nil
-            local eggName = "—"
-            local rarityName = ""
-            local rarityColor = ACCENT_ORANGE
+            local eggName = "—"; local rarityName = ""; local rarityColor = ACCENT_ORANGE
             if carrying then
                 local a = Assets and Assets.Directory and Assets.Directory[rec.AssetCategory]
                 eggName = a and (a.DisplayName or a._id) or rec.AssetCategory or "?"
@@ -33321,9 +33064,8 @@ builders["Players"] = function(page)
             end
 
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 60)
-            row.BackgroundColor3 = BG_CARD; row.BorderSizePixel = 0
-            row.Parent = holder
+            row.Size = UDim2.new(1, 0, 0, 60); row.BackgroundColor3 = BG_CARD
+            row.BorderSizePixel = 0; row.Parent = holder
             local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10); rc.Parent = row
             local rs = Instance.new("UIStroke")
             rs.Color = carrying and rarityColor or Color3.fromRGB(105,72,48)
@@ -33363,10 +33105,10 @@ builders["Players"] = function(page)
             btn.TextColor3 = carrying and Color3.fromRGB(30, 15, 5) or Color3.fromRGB(120, 105, 90)
             btn.Font = FONT_STRONG; btn.TextSize = 12
             btn.AutoButtonColor = false; btn.Parent = row
-            local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 8); bc.Parent = btn
-            local bs = Instance.new("UIStroke")
-            bs.Color = carrying and ACCENT_GLOW or Color3.fromRGB(105,72,48)
-            bs.Thickness = 1; bs.Transparency = 0.3; bs.Parent = btn
+            local bcc = Instance.new("UICorner"); bcc.CornerRadius = UDim.new(0, 8); bcc.Parent = btn
+            local bss = Instance.new("UIStroke")
+            bss.Color = carrying and ACCENT_GLOW or Color3.fromRGB(105,72,48)
+            bss.Thickness = 1; bss.Transparency = 0.3; bss.Parent = btn
 
             if carrying then
                 btn.MouseEnter:Connect(function()
@@ -33376,20 +33118,19 @@ builders["Players"] = function(page)
                     TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_ORANGE}):Play()
                 end)
                 btn.MouseButton1Click:Connect(function()
-                    local cur = genv().__BabisV4PlayerSteal
-                    if cur and cur.strike then
+                    local cur = getgenv().__BabisV4PlayerSteal
+                    if cur and type(cur.strike) == "function" then
                         local ok = pcall(cur.strike, cur, plr)
                         Notify("Player Steal", ok and ("Chasing " .. plr.Name .. " for " .. eggName) or "Failed")
                     else
-                        Notify("Player Steal", "Player Steal runtime unavailable")
+                        Notify("Player Steal", "Runtime unavailable")
                     end
                 end)
             end
         end
     end
 
-    addClickButton(page, "Refresh Player List", "Reloads the player list.",
-        "rbxassetid://7734051052", 5, refreshList)
+    addButton(page, "Refresh Player List", "Reloads the player list.", 5, refreshList)
     refreshList()
 
     task.spawn(function()
@@ -33404,33 +33145,33 @@ end
 -- ADMIN
 -- ============================================================
 builders["Admin"] = function(page)
-    addToggleButton(page, "Admin Abuse Boost", "Only use while Admin Abuse is active.",
-        false, 1, function(v)
-            local fn = genv().__BabisV4SetAdminBoost
-            if fn then pcall(fn, v) else genv().__BabisV4AdminBoost = v end
-        end)
-    addToggleButton(page, "Fly For Capture", "Fly up and hold position.",
-        CFG.FlyForCapture == true, 2, function(v)
-            CFG.FlyForCapture = v
-            callG("__BabisV4MovementExtras", "setFlyForCapture", v)
-        end)
-    addToggleButton(page, "Instant Grab", "Quick tap to grab.",
-        CFG.InstantGrab == true, 3, function(v)
-            CFG.InstantGrab = v
-            callG("__BabisV4MovementExtras", "setInstantGrab", v)
-        end)
-    addToggleButton(page, "Infinite Jump", "Jump mid-air.",
-        CFG.InfiniteJump == true, 4, function(v)
-            CFG.InfiniteJump = v
-            callG("__BabisV4MovementExtras", "setInfiniteJump", v)
-        end)
-    addSliderCard(page, "Walk Speed Multiplier", "1.0 to 2.1.",
-        10, 21, math.floor((CFG.WalkSpeedMultiplier or 1) * 10), 5, function(v)
+    addToggle(page, "Admin Abuse Boost", "Only use while Admin Abuse is active.", false, 1, function(v)
+        local fn = getgenv().__BabisV4SetAdminBoost
+        if type(fn) == "function" then pcall(fn, v) else getgenv().__BabisV4AdminBoost = v end
+    end)
+    addToggle(page, "Fly For Capture", "Fly up and hold position.", CFG.FlyForCapture == true, 2, function(v)
+        CFG.FlyForCapture = v
+        local mv = getgenv().__BabisV4MovementExtras
+        if mv and type(mv.setFlyForCapture) == "function" then pcall(mv.setFlyForCapture, mv, v) end
+    end)
+    addToggle(page, "Instant Grab", "Quick tap to grab.", CFG.InstantGrab == true, 3, function(v)
+        CFG.InstantGrab = v
+        local mv = getgenv().__BabisV4MovementExtras
+        if mv and type(mv.setInstantGrab) == "function" then pcall(mv.setInstantGrab, mv, v) end
+    end)
+    addToggle(page, "Infinite Jump", "Jump mid-air.", CFG.InfiniteJump == true, 4, function(v)
+        CFG.InfiniteJump = v
+        local mv = getgenv().__BabisV4MovementExtras
+        if mv and type(mv.setInfiniteJump) == "function" then pcall(mv.setInfiniteJump, mv, v) end
+    end)
+    addSlider(page, "Walk Speed Multiplier", "1.0 to 2.1.", 10, 21,
+        math.floor((CFG.WalkSpeedMultiplier or 1) * 10), 5, function(v)
             local m = v / 10
             CFG.WalkSpeedMultiplier = m
-            callG("__BabisV4MovementExtras", "setSpeedMultiplier", m)
+            local mv = getgenv().__BabisV4MovementExtras
+            if mv and type(mv.setSpeedMultiplier) == "function" then pcall(mv.setSpeedMultiplier, mv, m) end
         end)
-    addToggleButton(page, "Anti Hit Guard", "Manual anti-knockback (outside Auto Steal).",
+    addToggle(page, "Anti Hit Guard", "Manual anti-knockback (outside Auto Steal).",
         CFG.AntiHitGuard == true, 6, function(v)
             CFG.AntiHitGuard = v
             callG("__BabisV4AntiHitGuard", "setEnabled", v)
@@ -33441,7 +33182,7 @@ end
 -- MISC
 -- ============================================================
 builders["Misc"] = function(page)
-    addToggleButton(page, "Anti Treadmill", "Never stays on a treadmill.", CFG.AntiTreadmill == true, 1, function(v)
+    addToggle(page, "Anti Treadmill", "Never stays on a treadmill.", CFG.AntiTreadmill == true, 1, function(v)
         CFG.AntiTreadmill = v
         if v then
             callG("__BabisV4TreadmillManager", "setIdleFarm", false)
@@ -33450,65 +33191,66 @@ builders["Misc"] = function(page)
             callG("__BabisV4TreadmillManager", "setIdleFarm", CFG.AutoTreadmillIdle == true)
         end
     end)
-    addToggleButton(page, "Auto Treadmill", "Farms speed when idle.", CFG.AutoTreadmillIdle == true, 2, function(v)
+    addToggle(page, "Auto Treadmill", "Farms speed when idle.", CFG.AutoTreadmillIdle == true, 2, function(v)
         CFG.AutoTreadmillIdle = v
         callG("__BabisV4TreadmillManager", "setIdleFarm", v and not CFG.AntiTreadmill)
     end)
-    addToggleButton(page, "Auto Upgrade Treadmill", "Buys next tier.", CFG.AutoTreadmillUpgrade == true, 3, function(v)
+    addToggle(page, "Auto Upgrade Treadmill", "Buys next tier.", CFG.AutoTreadmillUpgrade == true, 3, function(v)
         CFG.AutoTreadmillUpgrade = v
         callG("__BabisV4TreadmillManager", "setAutoUpgrade", v)
     end)
-    addToggleButton(page, "Hop When Nothing Matches", "Auto hop when no egg matches.", CFG.HopNoMatch == true, 4, function(v)
+    addToggle(page, "Hop When Nothing Matches", "Auto hop when no egg matches.", CFG.HopNoMatch == true, 4, function(v)
         CFG.HopNoMatch = v
         if v then callG("__BabisV4ServerHop", "startHopLoop") end
     end)
-    addSliderCard(page, "Hop Cooldown", "Seconds between hops.",
-        1, 60, tonumber(CFG.HopCooldown) or 5, 5, function(v) CFG.HopCooldown = v end)
-    addSelectCard(page, "Private Server Max Players", "Target player limit.",
+    addSlider(page, "Hop Cooldown", "Seconds between hops.", 1, 60, tonumber(CFG.HopCooldown) or 5, 5,
+        function(v) CFG.HopCooldown = v end)
+    addSelect(page, "Private Server Max Players", "Target player limit.",
         {"1", "2", "3", "4", "5"}, tonumber(tostring(CFG.PrivateServerMax or "2"):match("%d+")) or 2, 6,
         function(o) CFG.PrivateServerMax = tostring(o) end)
-    addToggleButton(page, "Private Server Auto Hop", "Keep hopping until server is empty.",
+    addToggle(page, "Private Server Auto Hop", "Keep hopping until server is empty.",
         CFG.PrivateServerAuto == true, 7, function(v)
             CFG.PrivateServerAuto = v
             if v then callG("__BabisV4ServerHop", "startPrivateAutoHop") end
         end)
-    addClickButton(page, "Hop Server Now", "Find an empty server.", "rbxassetid://7734020942", 8, function()
-        local h = genv().__BabisV4ServerHop
-        if h and h.hopPrivateOnce then task.spawn(function() pcall(h.hopPrivateOnce) end) end
+    addButton(page, "Hop Server Now", "Find an empty server.", 8, function()
+        local h = getgenv().__BabisV4ServerHop
+        if h and h.hopPrivateOnce then task.spawn(function() pcall(h.hopPrivateOnce) end)
+        else Notify("Server Hop", "Runtime unavailable") end
     end)
-    addToggleButton(page, "Anti AFK", "Blocks idle kicks.", CFG.AntiAFK ~= false, 9, function(v)
+    addToggle(page, "Anti AFK", "Blocks idle kicks.", CFG.AntiAFK ~= false, 9, function(v)
         CFG.AntiAFK = v
-        local fn = genv().__BabisV4SetAntiAfkEnabled; if fn then pcall(fn, v) end
+        local fn = getgenv().__BabisV4SetAntiAfkEnabled; if type(fn) == "function" then pcall(fn, v) end
     end)
-    addToggleButton(page, "Auto Reconnect", "Reconnects after disconnect.", CFG.AutoReconnect ~= false, 10, function(v)
+    addToggle(page, "Auto Reconnect", "Reconnects after disconnect.", CFG.AutoReconnect ~= false, 10, function(v)
         CFG.AutoReconnect = v
-        local fn = genv().__BabisV4SetAutoReconnect; if fn then pcall(fn, v) end
+        local fn = getgenv().__BabisV4SetAutoReconnect; if type(fn) == "function" then pcall(fn, v) end
     end)
-    addToggleButton(page, "Auto Execute (Rejoin)", "Rerun script on rejoin.", CFG.AutoExecute == true, 11, function(v)
+    addToggle(page, "Auto Execute (Rejoin)", "Rerun script on rejoin.", CFG.AutoExecute == true, 11, function(v)
         CFG.AutoExecute = v
-        local fn = genv().__BabisV4SetAutoExecute; if fn then pcall(fn, v) end
+        local fn = getgenv().__BabisV4SetAutoExecute; if type(fn) == "function" then pcall(fn, v) end
     end)
-    addToggleButton(page, "Startup Boost", "Lower graphics on boot.", CFG.StartupBoost ~= false, 12, function(v)
+    addToggle(page, "Startup Boost", "Lower graphics on boot.", CFG.StartupBoost ~= false, 12, function(v)
         CFG.StartupBoost = v
-        local fn = genv().__BabisV4SetStartupBoost; if fn then pcall(fn, v) end
+        local fn = getgenv().__BabisV4SetStartupBoost; if type(fn) == "function" then pcall(fn, v) end
     end)
-    addToggleButton(page, "Uncap FPS", "Raise cap to 240.", true, 13, function(v)
-        local fn = genv().__BabisV4SetCapFps
-        if fn then pcall(fn, v and 240 or 60) end
+    addToggle(page, "Uncap FPS", "Raise cap to 240.", true, 13, function(v)
+        local fn = getgenv().__BabisV4SetCapFps
+        if type(fn) == "function" then pcall(fn, v and 240 or 60) end
     end)
-    addClickButton(page, "Rejoin This Server", "Rejoin the current server.", "rbxassetid://7734051052", 14, function()
+    addButton(page, "Rejoin This Server", "Rejoin the current server.", 14, function()
         pcall(function()
             game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
     end)
-    addClickButton(page, "Stop & Unload", "Turn everything off.", "rbxassetid://7734042423", 15, function()
+    addButton(page, "Stop & Unload", "Turn everything off.", 15, function()
         local flags = {"AutoSteal","AutoPlace","AutoHatch","AutoSell","AutoSellEgg","StealPlayers",
             "AutoFavorite","AutoFusePets","AutoEquipBest","AutoClaimOffline","AutoBaseUpgrade",
             "AutoClaimAlmanac","Noclip","BottingMode","AntiCutscene","AutoRingEvent",
             "ButterflyAutoCatch","ButterflyAutoTrade","ButterflyAutoCraft","ScrambleBossAuto"}
         for _, k in ipairs(flags) do CFG[k] = false end
         callG("__BabisV4EggRuntime", "setEnabled", false)
-        local fn = genv().__BabisV4HubShutdown
+        local fn = getgenv().__BabisV4HubShutdown
         if type(fn) == "function" then task.delay(0.2, function() pcall(fn) end) end
         gui:Destroy()
     end)
@@ -33518,39 +33260,39 @@ end
 -- SETTINGS
 -- ============================================================
 builders["Settings"] = function(page)
-    addToggleButton(page, "Steal Webhook", "Posts an embed to Discord.",
-        CFG.WebhookEnabled == true, 1, function(v) CFG.WebhookEnabled = v end)
-    addInputCard(page, "Webhook URL", "Your Discord webhook URL.",
+    addToggle(page, "Steal Webhook", "Posts an embed to Discord.", CFG.WebhookEnabled == true, 1, function(v)
+        CFG.WebhookEnabled = v
+    end)
+    addInput(page, "Webhook URL", "Your Discord webhook URL.",
         "https://discord.com/api/webhooks/...", CFG.WebhookURL or "", 2, function(v)
             CFG.WebhookURL = tostring(v or "")
         end)
-    addInputCard(page, "Notify Rarities", "Rarities to notify (comma-separated).",
+    addInput(page, "Notify Rarities", "Rarities to notify (comma-separated).",
         "Secret, Eternal", joinList(CFG.WebhookRarities), 3, function(v)
             CFG.WebhookRarities = splitList(v)
         end)
-    addInputCard(page, "Notify Minimum Value", "Minimum $/s value.", "1m", "", 4, function(v)
+    addInput(page, "Notify Minimum Value", "Minimum $/s value.", "1m", "", 4, function(v)
         CFG.WebhookMinValue = parseMoney(v)
     end)
-    addClickButton(page, "Test Webhook", "Send a test embed.", "rbxassetid://7743872929", 5, function()
-        local w = genv().__BabisV4Webhook
-        if w and w.test then
+    addButton(page, "Test Webhook", "Send a test embed.", 5, function()
+        local w = getgenv().__BabisV4Webhook
+        if w and type(w.test) == "function" then
             local ok = pcall(w.test)
             Notify("Webhook", ok and "Sent" or "Failed")
         else
             Notify("Webhook", "Runtime unavailable")
         end
     end)
-    addClickButton(page, "Babis Discord", "Join the community server.",
-        DISCORD_ICON, 6, function()
-            pcall(function() if setclipboard then setclipboard(DISCORD_LINK) end end)
-            pcall(function()
-                local GuiService = game:GetService("GuiService")
-                if GuiService and GuiService.OpenBrowserWindow then
-                    GuiService:OpenBrowserWindow(DISCORD_LINK)
-                end
-            end)
-            Notify("Discord", "Link copied: ju39QFTq")
+    addButton(page, "Babis Discord", "Join the community server.", 6, function()
+        pcall(function() if setclipboard then setclipboard(DISCORD_LINK) end end)
+        pcall(function()
+            local GuiService = game:GetService("GuiService")
+            if GuiService and GuiService.OpenBrowserWindow then
+                GuiService:OpenBrowserWindow(DISCORD_LINK)
+            end
         end)
+        Notify("Discord", "Link copied: ju39QFTq")
+    end)
 end
 
 -- ============================================================
@@ -33565,14 +33307,14 @@ local function rebuildTab(name)
     for _, ch in ipairs(page:GetChildren()) do
         if not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then ch:Destroy() end
     end
-    builders[name](page)
+    local ok, err = pcall(builders[name], page)
+    if not ok then warn("[Babis Hub] Builder '" .. tostring(name) .. "' errored: " .. tostring(err)) end
     page.CanvasPosition = Vector2.zero
 end
 
 local function selectTab(name)
     if activeTab == name then return end
     activeTab = name
-    if activeDropdownCloser then activeDropdownCloser() end
     for n, data in pairs(tabButtons) do
         local isActive = (n == name)
         if isActive then
@@ -33622,24 +33364,24 @@ for i, tab in ipairs(TABS) do
     btn.Size = UDim2.new(1, -16, 0, TAB_H); btn.BackgroundColor3 = BG_HEADER
     btn.BackgroundTransparency = 1; btn.Text = ""; btn.BorderSizePixel = 0
     btn.AutoButtonColor = false; btn.LayoutOrder = i; btn.ClipsDescendants = true
-    btn.ZIndex = 5; btn.Parent = tabsScroll
+    btn.Parent = tabsScroll
     local bC = Instance.new("UICorner"); bC.CornerRadius = UDim.new(0, 8); bC.Parent = btn
     local bS = Instance.new("UIStroke"); bS.Color = BORDER_COLOR; bS.Thickness = 1
     bS.Transparency = 1; bS.Parent = btn
     local bar = Instance.new("Frame")
     bar.Size = UDim2.new(0, 3, 0.5, 0); bar.Position = UDim2.new(0, -1, 0.5, 0)
     bar.AnchorPoint = Vector2.new(0, 0.5); bar.BackgroundColor3 = ACCENT_ORANGE
-    bar.BorderSizePixel = 0; bar.Visible = false; bar.ZIndex = 6; bar.Parent = btn
+    bar.BorderSizePixel = 0; bar.Visible = false; bar.Parent = btn
     local barC = Instance.new("UICorner"); barC.CornerRadius = UDim.new(0, 2); barC.Parent = bar
     local icon = Instance.new("ImageLabel")
     icon.Size = UDim2.new(0, 22, 0, 22); icon.Position = UDim2.new(0, 13, 0.5, -11)
     icon.BackgroundTransparency = 1; icon.Image = tab.icon
-    icon.ImageColor3 = TAB_TEXT; icon.ZIndex = 6; icon.Parent = btn
+    icon.ImageColor3 = TAB_TEXT; icon.Parent = btn
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -50, 1, 0); label.Position = UDim2.new(0, 46, 0, 0)
     label.BackgroundTransparency = 1; label.Text = tab.name
     label.TextColor3 = TAB_TEXT; label.TextSize = 14; label.Font = FONT_MAIN
-    label.TextXAlignment = Enum.TextXAlignment.Left; label.ZIndex = 6; label.Parent = btn
+    label.TextXAlignment = Enum.TextXAlignment.Left; label.Parent = btn
     btn.MouseEnter:Connect(function()
         if activeTab ~= tab.name then
             TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundTransparency = 0.7, BackgroundColor3 = BG_MAIN}):Play()
@@ -33728,22 +33470,22 @@ local function createBall(x, y)
     ballRing.Size = UDim2.new(0, BALL_SIZE, 0, BALL_SIZE)
     ballRing.Position = UDim2.new(0, x, 0, y)
     ballRing.BackgroundTransparency = 1; ballRing.BorderSizePixel = 0
-    ballRing.ZIndex = 298; ballRing.Parent = gui
-    nCorner(ballRing, BALL_SIZE / 2)
-    local rs = Instance.new("UIStroke"); rs.Color = ACCENT_ORANGE
-    rs.Thickness = 2; rs.Transparency = 0.4; rs.Parent = ballRing
+    ballRing.Parent = gui
+    local rbc = Instance.new("UICorner"); rbc.CornerRadius = UDim.new(0, BALL_SIZE / 2); rbc.Parent = ballRing
+    local rbs = Instance.new("UIStroke"); rbs.Color = ACCENT_ORANGE
+    rbs.Thickness = 2; rbs.Transparency = 0.4; rbs.Parent = ballRing
     ball = Instance.new("TextButton")
     ball.Size = UDim2.new(0, 0, 0, 0)
     ball.Position = UDim2.new(0, x + BALL_SIZE / 2, 0, y + BALL_SIZE / 2)
     ball.AnchorPoint = Vector2.new(0.5, 0.5)
     ball.BackgroundColor3 = BG_HEADER; ball.Text = ""; ball.BorderSizePixel = 0
-    ball.AutoButtonColor = false; ball.ZIndex = 300; ball.Parent = gui
-    nCorner(ball, BALL_SIZE / 2)
-    local bss = Instance.new("UIStroke"); bss.Color = ACCENT_ORANGE
-    bss.Thickness = 2; bss.Transparency = 0.15; bss.Parent = ball
+    ball.AutoButtonColor = false; ball.Parent = gui
+    local bc2 = Instance.new("UICorner"); bc2.CornerRadius = UDim.new(0, BALL_SIZE / 2); bc2.Parent = ball
+    local bs2 = Instance.new("UIStroke"); bs2.Color = ACCENT_ORANGE
+    bs2.Thickness = 2; bs2.Transparency = 0.15; bs2.Parent = ball
     local img = Instance.new("ImageLabel")
     img.Size = UDim2.new(0, 40, 0, 40); img.Position = UDim2.new(0.5, -20, 0.5, -20)
-    img.BackgroundTransparency = 1; img.Image = LOGO_ICON; img.ZIndex = 301; img.Parent = ball
+    img.BackgroundTransparency = 1; img.Image = LOGO_ICON; img.Parent = ball
     TweenService:Create(ball, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Size = UDim2.new(0, BALL_SIZE, 0, BALL_SIZE),
     }):Play()
@@ -33751,12 +33493,12 @@ local function createBall(x, y)
         while ballRing and ballRing.Parent and ball and ball.Parent do
             ballRing.Size = UDim2.new(0, BALL_SIZE, 0, BALL_SIZE)
             ballRing.Position = ball.Position - UDim2.new(0, BALL_SIZE / 2, 0, BALL_SIZE / 2)
-            rs.Transparency = 0.4
+            rbs.Transparency = 0.4
             TweenService:Create(ballRing, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = UDim2.new(0, BALL_SIZE + 22, 0, BALL_SIZE + 22),
                 Position = ball.Position - UDim2.new(0, (BALL_SIZE + 22) / 2, 0, (BALL_SIZE + 22) / 2),
             }):Play()
-            TweenService:Create(rs, TweenInfo.new(1.4), {Transparency = 1}):Play()
+            TweenService:Create(rbs, TweenInfo.new(1.4), {Transparency = 1}):Play()
             task.wait(1.4)
         end
     end)
@@ -33801,7 +33543,6 @@ end
 function minimize()
     if isAnim or isMin then return end
     isAnim = true
-    if activeDropdownCloser then activeDropdownCloser() end
     local cx = rect.AbsolutePosition.X + rect.AbsoluteSize.X / 2
     local cy = rect.AbsolutePosition.Y + rect.AbsoluteSize.Y / 2
     TweenService:Create(rect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -33851,4 +33592,4 @@ closeBtnHeader.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 rebuildTab("Main")
 
-print("[Babis Hub v12] Loaded — English, 9 tabs, full Events.")
+print("[Babis Hub v13] Loaded — Full standalone, English, 9 tabs.")
