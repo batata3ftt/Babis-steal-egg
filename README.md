@@ -842,7 +842,7 @@ local babisV4Config = {
 	ScrambleTradeInReroll = false,
 	ScrambleTradeInBanners = {},
 	ScrambleBossAuto = false,
-	StealMode = "Fly",
+	StealMode = "Instant",
 	FlyAerial = false,
 	StealHoldSeconds = 5,
 	StealAreas = { "None" },
@@ -851,6 +851,7 @@ local babisV4Config = {
 	StealMinValue = 0,
 	StealMutations = { "None" },
 	StealMinWeight = 0,
+	StealMinRarity = "None",
 	StealPriority = "Rarity",
 	AutoFavorite = false,
 	FavMode = "Rarity",
@@ -927,7 +928,10 @@ local babisV4Config = {
 	StealPlayerMinValue = 0,
 	StealPlayerTarget = "Any Player",
 	WebhookRarities = { "None" },
-	WebhookMinValue = 0
+	WebhookMinValue = 0,
+	-- Gift Mode: pick up the egg and deposit it at its own slot instead of delivering to safe zone.
+	-- Works with both Auto Steal and Instant Steal V3.
+	GiftMode = false
 }
 local EggState = require(game:GetService("ReplicatedStorage").Client.EggState)
 
@@ -4344,7 +4348,7 @@ do
 			end)
 		end
 		local function v781()
-			return getgenv and getgenv() or _G
+			return genv
 		end
 		local function v782()
 			if type(getconnections) ~= "function" or type(debug) ~= "table" or type(debug.info) ~= "function" or type(debug.getupvalue) ~= "function" then
@@ -4809,6 +4813,7 @@ do
 				antiTrap = true,
 				heaviestFirst = false,
 				highestValueFirst = false,
+				minRarityRank = 0,
 				minWeightKg = 0,
 				espEnabled = false,
 				espRarity = true,
@@ -4934,7 +4939,7 @@ do
 						end
 
 						if obj.activeTarget == activeTarget and activeTarget.Uid == p191 then
-							obj:_finish("Target removed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â continuing")
+							obj:_finish("Target removed  -  continuing")
 						end
 					end)
 				end
@@ -5447,6 +5452,10 @@ do
 			local v939 = p214.catalog.resolve(p215)
 			local config = p214.config
 			local v941, v942, minValuePerSec, minWeightKg
+
+			if (config.minRarityRank or 0) > 0 and (v939.rarityRank or 0) < config.minRarityRank then
+				return false
+			end
 
 			if config.rarityEnabled then
 				if not (#config.rarities ~= 0 and v743(config.rarities, v939.rarity)) then
@@ -6233,7 +6242,7 @@ do
 					return
 				end
 
-				p229:_finish(p229.captureObjectiveEnabled and "Capture egg lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â re-grabbing" or "Capture stopped")
+				p229:_finish(p229.captureObjectiveEnabled and "Capture egg lost  -  re-grabbing" or "Capture stopped")
 			end)
 		end
 		t46._chooseTarget = function(p231)
@@ -6798,7 +6807,7 @@ do
 					pcall(EggState2.DropFieldEgg, "PlayerRequest")
 				end
 
-				p261:_finish("Steal timed out ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p261:_finish("Steal timed out  -  retrying")
 			end)
 		end
 
@@ -6898,6 +6907,14 @@ do
 			end
 
 			p266.activeTarget = v1089
+			local function skipUnreachableTarget(reason)
+				if p266.destroyed or not p266.enabled or p266.instantPhase ~= "hunting" or not p266.activeTarget or p266.activeTarget.Uid ~= v1089.Uid then
+					return
+				end
+
+				p266.skippedEggs[v1089.Uid] = os.clock() + 30
+				p266:_finish(reason)
+			end
 
 			local v1093 = p266:_resolveEggDestination(v1089, HumanoidRootPart, Humanoid)
 
@@ -6920,9 +6937,7 @@ do
 					p266:_setStatus("Heading to target egg")
 
 					if not p266:_glideRoot(cFrame2, v1095) then
-						if not v1095() then
-							p266:_finish("Could not reach the egg ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
-						end
+						skipUnreachableTarget("Could not reach the egg  -  retrying")
 
 						return
 					end
@@ -6971,7 +6986,11 @@ do
 							end
 
 							if not v1095() then
-								p266:_glideRoot(v1093, v1095)
+								if not p266:_glideRoot(v1093, v1095) then
+									skipUnreachableTarget("Could not reach the egg  -  retrying")
+
+									return
+								end
 
 								if v1095() then
 									return
@@ -6984,7 +7003,11 @@ do
 								return
 							end
 						elseif not v1095() then
-							p266:_glideRoot(v1093, v1095)
+							if not p266:_glideRoot(v1093, v1095) then
+								skipUnreachableTarget("Could not reach the egg  -  retrying")
+
+								return
+							end
 
 							if v1095() then
 								return
@@ -7031,9 +7054,7 @@ do
 				p266:_stopFlyGrounding()
 
 				if not v1106 then
-					if not v1105() then
-						p266:_finish("Could not reach the egg ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
-					end
+					skipUnreachableTarget("Could not reach the egg  -  retrying")
 
 					return
 				end
@@ -7041,9 +7062,7 @@ do
 				p266:_setStatus("Heading to target egg")
 
 				if not p266:_walkToZigzag(v1093, v1105) then
-					if not v1105() then
-						p266:_finish("Zig-zag walk to target failed")
-					end
+					skipUnreachableTarget("Zig-zag walk to target failed")
 
 					return
 				end
@@ -7051,9 +7070,7 @@ do
 				p266:_setStatus("Heading to target egg")
 
 				if not p266:_walkTo(v1093, v1105) then
-					if not v1105() then
-						p266:_finish("Walk to target failed")
-					end
+					skipUnreachableTarget("Walk to target failed")
 
 					return
 				end
@@ -7063,7 +7080,11 @@ do
 				return
 			end
 
-			p266:_glideRoot(v1093, v1105, p266:_legitWalkSpeed())
+			if not p266:_glideRoot(v1093, v1105, p266:_legitWalkSpeed()) then
+				skipUnreachableTarget("Could not reach the egg  -  retrying")
+
+				return
+			end
 
 			if v1105() then
 				return
@@ -8148,7 +8169,7 @@ do
 
 				local Magnitude = Vector3.new(Position.X - HumanoidRootPart.Position.X, 0, Position.Z - HumanoidRootPart.Position.Z).Magnitude
 
-				return p326:_walkLeg(Position, p328, v1246, true, os.clock() + math.clamp(Magnitude / WalkSpeed * 2 + 8, 12, 90))
+				return p326:_walkLeg(Position, p328, v1246, true, os.clock() + math.clamp(Magnitude / WalkSpeed * 2 + 8, 12, 300))
 			end
 		end
 
@@ -8179,7 +8200,7 @@ do
 
 			local Magnitude = Vector3.new(Position.X - HumanoidRootPart.Position.X, 0, Position.Z - HumanoidRootPart.Position.Z).Magnitude
 			local v1260 = math.max(45, WalkSpeed * WalkSpeed / (2 * p330:_walkBrakeDecel()) * 2.5)
-			local v1261 = os.clock() + math.clamp(Magnitude / WalkSpeed * 3 + 10, 14, 120)
+			local v1261 = os.clock() + math.clamp(Magnitude / WalkSpeed * 3 + 10, 14, 300)
 			local v1262
 			local v1263
 			local ok, result, result2 = pcall(function()
@@ -8305,7 +8326,7 @@ do
 			end
 
 			local Magnitude = Vector3.new(Position.X - HumanoidRootPart.Position.X, 0, Position.Z - HumanoidRootPart.Position.Z).Magnitude
-			local v1295 = p334:_walkLeg(Position, p336, v1279, true, os.clock() + math.clamp(Magnitude / WalkSpeed * 2 + 10, 12, 120), v1284)
+			local v1295 = p334:_walkLeg(Position, p336, v1279, true, os.clock() + math.clamp(Magnitude / WalkSpeed * 2 + 10, 12, 300), v1284)
 
 			v1289(false)
 			p334.hoverPadHeightOverride = nil
@@ -8318,7 +8339,9 @@ do
 				return false
 			end
 
-			p334:_glideRoot(p335, p336, p334:_legitWalkSpeed())
+			if not p334:_glideRoot(p335, p336, p334:_legitWalkSpeed()) then
+				return false
+			end
 
 			local v1296 = p336 and p336()
 
@@ -9303,7 +9326,7 @@ do
 
 		t46._reStealDroppedEgg = function(p403, p404)
 			if type(p404) ~= "string" or p404 == "" then
-				p403:_finish("Egg lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p403:_finish("Egg lost  -  retrying")
 
 				return
 			end
@@ -9354,7 +9377,7 @@ do
 
 			if not v1414 or not p403:_wallOpen() then
 				p403:_releaseCarryWorker(v1413)
-				p403:_finish("Egg lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p403:_finish("Egg lost  -  retrying")
 
 				return
 			end
@@ -9386,7 +9409,7 @@ do
 
 			if not p403:_teleportRoot(HumanoidRootPart, Humanoid, v1421) then
 				p403:_releaseCarryWorker(v1413)
-				p403:_finish("Re-steal failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p403:_finish("Re-steal failed  -  retrying")
 
 				return
 			end
@@ -9558,12 +9581,12 @@ do
 				end)
 
 				if v1441 then
-					p409:_setStatus(lastCarryReject and "Carry refused (" .. lastCarryReject .. ") ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â skipping egg" or "Carry timed out twice ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â skipping egg")
+					p409:_setStatus(lastCarryReject and "Carry refused (" .. lastCarryReject .. ")  -  skipping egg" or "Carry timed out twice  -  skipping egg")
 				else
-					p409:_setStatus("Carry timeout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+					p409:_setStatus("Carry timeout  -  retrying")
 				end
 			else
-				p409:_setStatus("Carry timeout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â safe area unavailable")
+				p409:_setStatus("Carry timeout  -  safe area unavailable")
 			end
 
 			p409.running = false
@@ -9767,7 +9790,7 @@ do
 						p412:_setStatus("Re-stealing egg")
 
 						if not p412:_teleportRoot(HumanoidRootPart, Humanoid2, v1458) then
-							p412:_finish("Re-steal failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+							p412:_finish("Re-steal failed  -  retrying")
 
 							return
 						end
@@ -9795,7 +9818,7 @@ do
 
 					u1448 = u1448 or os.clock() + v1449
 					p412.stats.lastResult = "Carry requested"
-					p412:_setStatus(lastCarryReject and "Waiting for carry Ãƒâ€šÃ‚Â· " .. lastCarryReject or "Waiting for carry confirmation")
+					p412:_setStatus(lastCarryReject and "Waiting for carry  |  " .. lastCarryReject or "Waiting for carry confirmation")
 					task.wait(0.25)
 				end
 			end)
@@ -10366,12 +10389,12 @@ do
 
 						p428._forestDropInProgress = nil
 						v1533(false)
-						p428:_finish("Drop failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+						p428:_finish("Drop failed  -  retrying")
 
 						return
 					end
 
-					if babisV4Config.HelpFriend then
+					if babisV4Config.HelpFriend or babisV4Config.GiftMode then
 						p428.skippedEggs[p429] = os.clock() + 1800
 						p428._forestDropInProgress = nil
 						p428.carry.active = false
@@ -10535,7 +10558,7 @@ do
 					end
 
 					if not v1572 and not v1524() then
-						v1534(v1526() and "Safe return complete" or "Re-grab failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+						v1534(v1526() and "Safe return complete" or "Re-grab failed  -  retrying")
 
 						return
 					end
@@ -10573,7 +10596,7 @@ do
 					task.wait(0.1)
 				end
 
-				v1534(v1526() and "Safe return complete" or "Bank not confirmed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				v1534(v1526() and "Safe return complete" or "Bank not confirmed  -  retrying")
 			end)
 		end
 		t46.deliverCarriedEgg = function(p441, p442, p443)
@@ -10700,7 +10723,7 @@ do
 
 				p444.skippedEggs[Uid] = os.clock() + 10
 
-				return p444:_finish("Carry refused ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â next egg")
+				return p444:_finish("Carry refused  -  next egg")
 			end)
 
 			if p444._adminBusyUid == Uid then
@@ -10711,7 +10734,7 @@ do
 				warn("[Babis Steal] admin steal error: " .. tostring(result))
 
 				if not p444.destroyed and p444.enabled then
-					p444:_finish("Steal error ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+					p444:_finish("Steal error  -  retrying")
 				end
 			end
 		end
@@ -10772,7 +10795,7 @@ do
 					p446:_reportStolen()
 					p446:_finish("Safe return complete")
 				else
-					p446:_finish(v1595() and "Bank not confirmed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying" or "Egg lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+					p446:_finish(v1595() and "Bank not confirmed  -  retrying" or "Egg lost  -  retrying")
 				end
 			end
 		end
@@ -10782,7 +10805,7 @@ do
 				if p448:_isPrimerEgg(p448.carry.uid) then
 					local uid = p448.carry.uid
 
-					p448.stats.lastResult = "Steal not banked ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"
+					p448.stats.lastResult = "Steal not banked  -  retrying"
 					p448.carry.active = false
 					p448.carry.uid = nil
 
@@ -10828,7 +10851,7 @@ do
 					local uid = p448.carry.uid or p448.activeTarget and p448.activeTarget.Uid
 
 					if not uid then
-						p448:_finish("Carry lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+						p448:_finish("Carry lost  -  retrying")
 
 						return
 					end
@@ -10866,7 +10889,7 @@ do
 
 				if not p448:_hasConfirmedCarry(uid) or p448:_recordShowsForeignCarry(uid) then
 					p448:_releaseCarryWorker(v1609)
-					p448:_finish("Carry not confirmed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+					p448:_finish("Carry not confirmed  -  retrying")
 
 					return
 				end
@@ -10877,7 +10900,7 @@ do
 					return
 				end
 
-				if not babisV4Config.HelpFriend then
+				if not babisV4Config.HelpFriend and not babisV4Config.GiftMode then
 					local v1612 = p448:_resolveSafeCFrame(HumanoidRootPart)
 
 					if not v1612 then
@@ -10988,7 +11011,7 @@ do
 
 					if p449:_isCarryWorkerCurrent(p450) then
 						p449:_releaseCarryWorker(p450)
-						p449:_finish("Friend drop failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+						p449:_finish("Friend drop failed  -  retrying")
 					end
 
 					return
@@ -11050,7 +11073,7 @@ do
 					if type(u1627) == "table" and (u1627.State == AreaEggs.States.Slot or u1627.State == AreaEggs.States.Dropped or u1627.State == AreaEggs.States.Carried and u1627.CarrierUserId ~= LocalPlayer2.UserId) then
 						p453.reportedUid = nil
 						p453.stats.deliveryFailed = (p453.stats.deliveryFailed or 0) + 1
-						p453.stats.lastResult = "Delivery failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"
+						p453.stats.lastResult = "Delivery failed  -  retrying"
 						p453:_notify()
 
 						if p453.enabled and not p453.running then
@@ -11145,7 +11168,7 @@ do
 								pcall(function()
 									p454:_invalidateCarryWorker()
 								end)
-								p454:_finish("Stuck ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+								p454:_finish("Stuck  -  retrying")
 							end
 						else
 							v1631 = nil
@@ -11204,7 +11227,7 @@ do
 						return
 					end
 
-					p455:_setStatus("Deposit pending ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â validating again")
+					p455:_setStatus("Deposit pending  -  validating again")
 					task.defer(function()
 						if p455:_isCarryWorkerCurrent(p456) and p455.carry.active then
 							p455:_finalizeReturn(p456)
@@ -11234,7 +11257,7 @@ do
 				task.wait(0.08)
 			end
 
-			p455:_setStatus("Rollback detected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â returning again")
+			p455:_setStatus("Rollback detected  -  returning again")
 			p455:_releaseCarryWorker(p456)
 			task.defer(function()
 				if not p455.destroyed and p455.enabled and p455.carry.active then
@@ -11387,7 +11410,7 @@ do
 			if not v1655 then
 				if p460.stats.matching == 0 and p460.stats.available > 0 then
 					if (p460.config.minWeightKg or 0) > 0 then
-						p460:_setStatus(string.format("No eggs ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ %dKg", p460.config.minWeightKg))
+						p460:_setStatus(string.format("No eggs >= %dKg", p460.config.minWeightKg))
 					else
 						p460:_setStatus("No matching eggs")
 					end
@@ -11424,7 +11447,7 @@ do
 			local v1658, v1659 = p460:_acquireOperation()
 
 			if not v1658 then
-				p460:_setStatus("Waiting Ãƒâ€šÃ‚Â· " .. tostring(v1659 or "another operation"))
+				p460:_setStatus("Waiting  |  " .. tostring(v1659 or "another operation"))
 				task.delay(0.5, function()
 					if not p460.destroyed and p460.enabled and p460.planGeneration == planGeneration then
 						p460:_schedule()
@@ -11440,7 +11463,7 @@ do
 
 			local v1660 = p460.catalog.resolve(v1655)
 
-			p460.stats.lastTarget = string.format("%s Ãƒâ€šÃ‚Â· %s Ãƒâ€šÃ‚Â· %s", v1660.rarity, v1660.name, v1655.AreaId)
+			p460.stats.lastTarget = string.format("%s  |  %s  |  %s", v1660.rarity, v1660.name, v1655.AreaId)
 
 			if tweenRecoveryUid then
 				p460.safeStarting = false
@@ -11587,7 +11610,7 @@ do
 			local v1669 = p460:_resolveEggDestination(v1668, HumanoidRootPart, Humanoid)
 
 			if not v1669 then
-				p460:_finish("Steal unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p460:_finish("Steal unavailable  -  retrying")
 
 				return
 			end
@@ -11615,7 +11638,7 @@ do
 					return p460.destroyed or not p460.enabled or p460.instantPhase ~= "priming" or p460.primerUid ~= v1668.Uid
 				end) then
 					if p460.instantPhase == "priming" and p460.primerUid == v1668.Uid then
-						p460:_finish("Steal unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+						p460:_finish("Steal unavailable  -  retrying")
 					end
 
 					return
@@ -11630,7 +11653,7 @@ do
 			p460:_setStatus("Preparing steal")
 
 			if not p460:_teleportRoot(HumanoidRootPart, Humanoid, v1669) then
-				p460:_finish("Steal unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying")
+				p460:_finish("Steal unavailable  -  retrying")
 
 				return
 			end
@@ -12003,13 +12026,13 @@ do
 			end
 
 			local t54 = {
-				["Carry not confirmed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true,
-				["Carry refused ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â next egg"] = true,
-				["Carry lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true,
-				["Drop failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true,
-				["Egg lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true,
-				["Re-steal failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true,
-				["Steal timed out ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retrying"] = true
+				["Carry not confirmed  -  retrying"] = true,
+				["Carry refused  -  next egg"] = true,
+				["Carry lost  -  retrying"] = true,
+				["Drop failed  -  retrying"] = true,
+				["Egg lost  -  retrying"] = true,
+				["Re-steal failed  -  retrying"] = true,
+				["Steal timed out  -  retrying"] = true
 			}
 			local t55 = {}
 
@@ -12597,6 +12620,14 @@ do
 
 		t46.setMinWeightKg = function(p502, p503)
 			p502.config.minWeightKg = math.max(tonumber(p503) or 0, 0)
+		end
+		t46.setMinRarity = function(p503, p504)
+			local rarity = type(p504) == "string" and p504 or "None"
+			local rank = rarity ~= "None" and p503.catalog.rarityRank(rarity) or 0
+			p503.config.minRarityRank = tonumber(rank) or 0
+			p503:_refreshCounts()
+			p503:_schedule()
+			return p503.config.minRarityRank
 		end
 		t46.setMinValuePerSec = function(p504, p505)
 			p504.config.minValuePerSec = math.max(tonumber(p505) or 0, 0)
@@ -17462,6 +17493,7 @@ end
 
 v612:setStealMode(babisV4Config.StealMode == "Semi Teleport" and "Instant" or babisV4Config.StealMode)
 v612:setSpeed(babisV4Config.TweenSpeedMultiplier or 60)
+v612:setMinRarity(babisV4Config.StealMinRarity)
 
 if babisV4Config.StealMinValue and babisV4Config.StealMinValue > 0 then
 	v612:setMinValuePerSec(babisV4Config.StealMinValue)
@@ -19714,7 +19746,7 @@ local function v2666()
 
 			local v2899 = t111.tiers()
 
-			t111.status = ("%s %s  Ãƒâ€šÃ‚Â·  +%d this Bloom"):format(v2898 == "Caught" and "Caught" or "Chasing", v2899 and v2899[p729.Name] and v2899[p729.Name].name or p729.Name, t126.gain())
+			t111.status = ("%s %s   |   +%d this Bloom"):format(v2898 == "Caught" and "Caught" or "Chasing", v2899 and v2899[p729.Name] and v2899[p729.Name].name or p729.Name, t126.gain())
 		end)
 	end
 	t126.prepare = function()
@@ -19977,7 +20009,7 @@ local function v2666()
 
 				if n56 <= now2 and not t126.swinging then
 					n56 = now2 + 1
-					t111.status = ("%s  Ãƒâ€šÃ‚Â·  +%d this Bloom"):format(v2961, t126.gain())
+					t111.status = ("%s   |   +%d this Bloom"):format(v2961, t126.gain())
 				end
 			else
 				v2957.AssemblyLinearVelocity = Vector3.zero
@@ -20023,7 +20055,7 @@ local function v2666()
 				if target then
 					local v2991 = t111.tiers()
 
-					t111.status = ("Chasing %s  Ãƒâ€šÃ‚Â·  +%d this Bloom"):format(v2991 and v2991[target.Name] and v2991[target.Name].name or target.Name, t126.gain())
+					t111.status = ("Chasing %s   |   +%d this Bloom"):format(v2991 and v2991[target.Name] and v2991[target.Name].name or target.Name, t126.gain())
 				end
 			end
 
@@ -20122,7 +20154,7 @@ local function v2666()
 
 		if not v2999 then
 			v2752()
-			t111.status = ("Waiting for butterflies  Ãƒâ€šÃ‚Â·  +%d this Bloom"):format(t126.gain())
+			t111.status = ("Waiting for butterflies   |   +%d this Bloom"):format(t126.gain())
 		end
 	end
 	local function v3000(p752)
@@ -21707,7 +21739,7 @@ do
 			local v3344 = v3165(p818, p819)
 
 			if not v3344 then
-				t132.status = "Pick an item first"
+				t132.status = "Pick an itin first"
 
 				return false
 			end
@@ -24992,7 +25024,7 @@ do
 				sortBtn.TextColor3 = v3976 and Color3.fromRGB(255, 255, 255) or v3697.btnText
 			end
 
-			local __BabisV4StealMode = genv.__BabisV4StealMode or "Fly"
+			local __BabisV4StealMode = genv.__BabisV4StealMode or "Instant"
 			local pairs_2 = pairs
 			local modeBtns = t175.modeBtns or {}
 
@@ -25238,7 +25270,7 @@ do
 			t175.headLbl.TextXAlignment = Enum.TextXAlignment.Left
 			t175.headLbl.TextTruncate = Enum.TextTruncate.AtEnd
 			t175.headLbl.TextColor3 = v3697.muted
-			t175.headLbl.Text = "Select eggs to add them to the steal queue"
+			t175.headLbl.Text = "Select eggs to add to the steal queue"
 			t175.headLbl.Parent = Frame
 
 			local categoryLabel = Instance.new("TextLabel")
@@ -27126,7 +27158,7 @@ do
 					v4264 = 0.82
 				end
 
-				UIScale.Scale = math.clamp(v4264, 0.48, 1)
+				UIScale.Scale = math.clamp(v4264, 0.2, 1)
 
 				local Scale = UIScale.Scale
 				local v4266 = v4242.w * Scale
@@ -27135,7 +27167,7 @@ do
 				if p963 then
 					if v4263 then
 						local v4268 = ViewportSize.X - math.floor(v4266 / 2) - 14
-						local v4269 = math.floor(ViewportSize.Y / 2)
+						local v4269 = math.floor(ViewportSize.Y / 2 + (n76 - 2) * math.min(36, ViewportSize.Y * 0.05))
 
 						Frame.Position = UDim2.fromOffset(v4268, v4269)
 					else
@@ -27209,16 +27241,6 @@ do
 			TextLabel5.Text = "Babis"
 			TextLabel5.Parent = Frame2
 
-			local ImageLabel2 = Instance.new("ImageLabel")
-
-			ImageLabel2.AnchorPoint = Vector2.new(0, 0.5)
-			ImageLabel2.Position = UDim2.fromOffset(11, 23)
-			ImageLabel2.Size = UDim2.fromOffset(20, 20)
-			ImageLabel2.BackgroundTransparency = 1
-			ImageLabel2.Image = "rbxassetid://96240498384290"
-			ImageLabel2.ScaleType = Enum.ScaleType.Fit
-			ImageLabel2.Parent = Frame2
-
 			local Frame3 = Instance.new("Frame")
 
 			Frame3.Position = UDim2.fromOffset(14, 44)
@@ -27244,51 +27266,6 @@ do
 			TextLabel6.TextColor3 = t166.text
 			TextLabel6.Text = v4242.name
 			TextLabel6.Parent = Frame3
-
-			local TextButton = Instance.new("TextButton")
-
-			TextButton.AnchorPoint = Vector2.new(0.5, 0.5)
-			TextButton.Position = UDim2.new(0.5, 0, 1, -36)
-			TextButton.Size = UDim2.fromOffset(176, 22)
-			TextButton.BackgroundColor3 = t166.btnBg
-			TextButton.BackgroundTransparency = 0.15
-			TextButton.AutoButtonColor = false
-			TextButton.Text = ""
-			TextButton.Parent = Frame2
-			Instance.new("UICorner", TextButton).CornerRadius = UDim.new(1, 6)
-
-			local UIStroke3 = Instance.new("UIStroke", TextButton)
-
-			UIStroke3.Color = t166.strokeCol
-			UIStroke3.Thickness = 1
-			UIStroke3.Transparency = 0.6
-
-			local ImageLabel3 = Instance.new("ImageLabel")
-
-			ImageLabel3.AnchorPoint = Vector2.new(0.5, 0.5)
-			ImageLabel3.Position = UDim2.new(0, 12, 0.5, 0)
-			ImageLabel3.Size = UDim2.fromOffset(12, 12)
-			ImageLabel3.BackgroundTransparency = 1
-			ImageLabel3.Image = "rbxassetid://94434236999817"
-			ImageLabel3.ScaleType = Enum.ScaleType.Fit
-			ImageLabel3.Parent = TextButton
-
-			local TextLabel7 = Instance.new("TextLabel")
-
-			TextLabel7.BackgroundTransparency = 1
-			TextLabel7.Position = UDim2.fromOffset(24, 0)
-			TextLabel7.Size = UDim2.new(1, -28, 1, 0)
-			TextLabel7.Font = Enum.Font.GothamBold
-			TextLabel7.TextSize = 12
-			TextLabel7.TextXAlignment = Enum.TextXAlignment.Center
-			TextLabel7.TextColor3 = t166.text
-			TextLabel7.Text = "Babis"
-			TextLabel7.Parent = TextButton
-			TextButton.MouseButton1Click:Connect(function()
-				pcall(function()
-					setclipboard("")
-				end)
-			end)
 
 			local TextButton2 = Instance.new("TextButton")
 
@@ -27358,14 +27335,29 @@ do
 			v4260(true)
 
 			local CurrentCamera = workspace.CurrentCamera
-
-			if CurrentCamera then
-				CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-					if ScreenGui and ScreenGui.Parent and ScreenGui.Enabled then
-						pcall(v4260, false)
-					end
-				end)
+			local viewportConnection
+			local cameraChangedConnection
+			local function watchViewport(camera)
+				if viewportConnection then viewportConnection:Disconnect(); viewportConnection = nil end
+				if camera then
+					viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+						if ScreenGui and ScreenGui.Parent and ScreenGui.Enabled then
+							pcall(v4260, false)
+						end
+					end)
+				end
 			end
+			watchViewport(CurrentCamera)
+			cameraChangedConnection = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+				watchViewport(workspace.CurrentCamera)
+				if ScreenGui and ScreenGui.Parent and ScreenGui.Enabled then
+					pcall(v4260, false)
+				end
+			end)
+			ScreenGui.Destroying:Connect(function()
+				if viewportConnection then viewportConnection:Disconnect(); viewportConnection = nil end
+				if cameraChangedConnection then cameraChangedConnection:Disconnect(); cameraChangedConnection = nil end
+			end)
 
 			windows[p962] = {
 				gui = ScreenGui,
@@ -29681,887 +29673,6 @@ do
 			end
 
 			v4730()
--- <<< INSERIR AQUI — MÓDULO INSTA STEAL (Instant TP do ClHUB) >>>
-do
-    local RS        = game:GetService("ReplicatedStorage")
-    local PL        = game:GetService("Players")
-    local RNS       = game:GetService("RunService")
-    local LP        = PL.LocalPlayer
-
-    local EggState, Assets, Mutations
-    pcall(function() EggState  = require(RS.Client.EggState) end)
-    pcall(function() Assets     = require(RS.Data.Assets) end)
-    pcall(function() Mutations = require(RS.Shared.Modules.Mutations) end)
-
-    local netFolder = RS:WaitForChild("Packages"):WaitForChild("Networking")
-    local function remote(n) return netFolder:FindFirstChild(n) end
-
-    local CFG = {
-        SpeedCap = 1.15, HopRatio = 1.515, HopMin = 40,
-        HopGap = 0.06, HopGapMin = 0.06, HopGapMax = 0.2,
-        HopRetries = 6, HopLift = 42, LandOffset = 14,
-        LandSettle = 0.08, DropDelay = 0.05, GrabInterval = 0.03,
-        RegrabFar = 40, Height = 70, ClimbShare = 0.5,
-        CarryRatio = 0.9, EasyRatio = 1.3,
-    }
-    local FPS = { 60, 30, 0.15 }
-
-    local S = {
-        Enabled = false, Carrying = false, Uid = nil, Delivered = 0,
-        Busy = false, Cancel = false, Mult = 1, PulledAt = 0,
-        HeldSeen = 0, GuessedDrop = false, LoopThread = nil,
-        LastStatus = "Idle", Hook = nil,
-    }
-
-    ---------------------------------------------------------------- shield (Humanoid Swap)
-    local shield = { Original = nil, Clone = nil, Links = {}, Connection = nil, Added = nil }
-
-    local function root()
-        local c = LP.Character
-        return c and c:FindFirstChild("HumanoidRootPart")
-    end
-
-    local function walkSpeed()
-        local c = LP.Character
-        local h = c and c:FindFirstChildOfClass("Humanoid")
-        local s = h and h.WalkSpeed or 16
-        if shield.Original and shield.Original.Health > 0 then
-            s = math.min(s, shield.Original.WalkSpeed)
-        end
-        local ok, r = pcall(function()
-            local stat = LP:FindFirstChild("leaderstats")
-            stat = stat and stat:FindFirstChild("Speed")
-            local util = require(RS.Shared.Util.TreadmillUtil)
-            return stat and util.SpeedPowerToWalkSpeed(stat.Value) or nil
-        end)
-        if ok and type(r) == "number" and r > 0 then
-            s = math.min(s, r)
-        end
-        return s
-    end
-
-    local function shieldControls(h)
-        pcall(function()
-            local scripts = LP:FindFirstChild("PlayerScripts")
-            local module = scripts and scripts:FindFirstChild("PlayerModule")
-            if module then
-                local controls = require(module):GetControls()
-                if type(controls) == "table" then controls.humanoid = h end
-            end
-        end)
-    end
-
-    local function shieldAnimate(c)
-        local a = c and c:FindFirstChild("Animate")
-        if a and a:IsA("LocalScript") then
-            task.spawn(function()
-                a.Enabled = false
-                task.wait()
-                a.Enabled = true
-            end)
-        end
-    end
-
-    local function shieldUnlink()
-        for _, l in ipairs(shield.Links) do
-            pcall(function() l:Disconnect() end)
-        end
-        table.clear(shield.Links)
-    end
-
-    local groundedStates = {
-        [Enum.HumanoidStateType.Running] = true,
-        [Enum.HumanoidStateType.RunningNoPhysics] = true,
-        [Enum.HumanoidStateType.Landed] = true,
-    }
-    local function grounded(h)
-        if not h or h.Health <= 0 or h.FloorMaterial == Enum.Material.Air then return false end
-        return groundedStates[h:GetState()] == true
-    end
-
-    local function shieldSwap()
-        local c = LP.Character
-        local h = c and c:FindFirstChildOfClass("Humanoid")
-        if not h or h.Health <= 0 then return end
-        if shield.Clone and shield.Clone.Parent == c then return end
-        if not grounded(h) then return end
-
-        local clone = h:Clone()
-        h.Parent = nil
-        clone.Parent = c
-        workspace.CurrentCamera.CameraSubject = clone
-        shieldControls(clone)
-        shieldAnimate(c)
-        shield.Original = h
-        shield.Clone = clone
-
-        table.insert(shield.Links, h:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-            if clone.Parent ~= nil then clone.WalkSpeed = h.WalkSpeed end
-        end))
-
-        local a1 = h:FindFirstChildOfClass("Animator")
-        local a2 = clone:FindFirstChildOfClass("Animator")
-        if a1 and a2 then
-            table.insert(shield.Links, a1.AnimationPlayed:Connect(function(played)
-                local anim = played.Animation
-                if not anim or clone.Parent == nil then return end
-                local ok, track = pcall(function() return a2:LoadAnimation(anim) end)
-                if not ok or not track then return end
-                pcall(function()
-                    track.Priority = played.Priority
-                    track.Looped   = played.Looped
-                    track:Play(0.05, math.max(played.WeightTarget, 0.01), played.Speed)
-                end)
-                local stop; stop = played.Stopped:Connect(function()
-                    stop:Disconnect()
-                    pcall(function() track:Stop(0.1) end)
-                end)
-            end))
-        end
-
-        table.insert(shield.Links, clone.Died:Connect(function()
-            shieldUnlink()
-            shield.Original, shield.Clone = nil, nil
-            local cur = LP.Character
-            if cur and h.Parent == nil then
-                h.Parent = cur
-                workspace.CurrentCamera.CameraSubject = h
-                shieldControls(h)
-            end
-            pcall(function() clone:Destroy() end)
-            h.Health = 0
-        end))
-    end
-
-    local function shieldUndo()
-        shieldUnlink()
-        local c = LP.Character
-        local o, cl = shield.Original, shield.Clone
-        shield.Original, shield.Clone = nil, nil
-        if o and cl and c and o.Parent == nil and cl.Parent == c then
-            o.Parent = c
-            workspace.CurrentCamera.CameraSubject = o
-            shieldControls(o)
-            pcall(function() cl:Destroy() end)
-            shieldAnimate(c)
-        end
-    end
-
-    local function shieldStart()
-        shieldSwap()
-        local n = 0
-        shield.Connection = RNS.Heartbeat:Connect(function(dt)
-            n += dt
-            local c = LP.Character
-            local missing = not (shield.Clone and c and shield.Clone.Parent == c)
-            if (missing and 0.25 or 3) <= n then
-                n = 0
-                shieldSwap()
-            end
-        end)
-        shield.Added = LP.CharacterAdded:Connect(function(c)
-            shieldUnlink()
-            shield.Original, shield.Clone = nil, nil
-            task.spawn(function()
-                c:WaitForChild("Humanoid", 10)
-                task.wait(1)
-                if shield.Connection and LP.Character == c then shieldSwap() end
-            end)
-        end)
-    end
-
-    local function shieldStop()
-        if shield.Connection then shield.Connection:Disconnect(); shield.Connection = nil end
-        if shield.Added then shield.Added:Disconnect(); shield.Added = nil end
-        shieldUndo()
-    end
-
-    ---------------------------------------------------------------- carry / hold tracking
-    if type(EggState) == "table" and type(EggState.CarryChanged) == "table" and EggState.CarryChanged.Connect then
-        EggState.CarryChanged:Connect(function(arg)
-            local carrying = type(arg) == "table" and arg.IsCarrying == true
-            if carrying and arg.GuardDisabled == true then carrying = false end
-            S.GuessedDrop = false
-            if carrying then S.HeldSeen = os.clock() end
-            if carrying and type(arg.Uid) == "string" then
-                S.Uid = arg.Uid
-                local m = tonumber(arg.SpeedMultiplier)
-                if m and m > 0 then S.Mult = m end
-            end
-            S.Carrying = carrying
-        end)
-    end
-    pcall(function()
-        local r = remote("RE/EggWorld/FieldEggRedeemVerdict")
-        if r then r.OnClientEvent:Connect(function() S.Delivered = os.clock() end) end
-    end)
-    pcall(function()
-        local r = remote("RE/RigSync/Refresh")
-        if r then
-            r.OnClientEvent:Connect(function(arg)
-                if type(arg) == "table" and arg.Action == "Relocate" then
-                    S.PulledAt = os.clock()
-                end
-            end)
-        end
-    end)
-
-    local function takeEgg(uid)
-        if type(uid) == "string" and EggState and type(EggState.CarryFieldEgg) == "function" then
-            pcall(EggState.CarryFieldEgg, uid)
-        end
-    end
-    local function dropEgg()
-        if EggState and type(EggState.DropFieldEgg) == "function" then
-            pcall(EggState.DropFieldEgg, "PlayerRequest")
-        end
-    end
-
-    local function promptNear(pos, radius)
-        local best, bd = nil, radius
-        for _, child in ipairs(workspace:GetChildren()) do
-            if child.Name == "SmartPromptPart" and child:IsA("BasePart") then
-                local p = child:FindFirstChild("CarryAreaEgg")
-                if p and p:IsA("ProximityPrompt") then
-                    local d = (child.Position - pos).Magnitude
-                    if d < bd then best, bd = p, d end
-                end
-            end
-        end
-        return best
-    end
-
-    local function heldByMe(uid)
-        local c = LP.Character
-        if type(uid) ~= "string" or not c then return false end
-        local egg = workspace:FindFirstChild(uid)
-        if not egg then return false end
-        for _, d in ipairs(egg:GetDescendants()) do
-            if d:IsA("WeldConstraint") or d:IsA("JointInstance") then
-                local ok, a, b = pcall(function() return d.Part0, d.Part1 end)
-                if ok and ((a and a:IsDescendantOf(c)) or (b and b:IsDescendantOf(c))) then
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
-    task.spawn(function()
-        while true do
-            task.wait(0.2)
-            if not S.Carrying then
-                if S.GuessedDrop and heldByMe(S.Uid) then
-                    S.GuessedDrop, S.Carrying, S.HeldSeen = false, true, os.clock()
-                end
-            elseif heldByMe(S.Uid) then
-                S.HeldSeen = os.clock()
-            elseif os.clock() - S.HeldSeen > 0.8 then
-                S.Carrying, S.GuessedDrop = false, true
-            end
-        end
-    end)
-
-    local function snapshot()
-        local list = {}
-        local ok, r = pcall(function()
-            return remote("RF/EggWorld/AskFieldEggSnapshot"):InvokeServer()
-        end)
-        local records = ok and type(r) == "table" and r.Records or nil
-        if type(records) ~= "table" then return list end
-        for _, rec in pairs(records) do
-            if type(rec) == "table" and type(rec.Uid) == "string"
-                and (rec.State == "Slot" or rec.State == "Dropped")
-                and typeof(rec.BottomCFrame) == "CFrame" then
-                list[#list + 1] = rec
-            end
-        end
-        return list
-    end
-
-    local function eggPosition(uid)
-        for _, rec in ipairs(snapshot()) do
-            if rec.Uid == uid then return rec.BottomCFrame.Position end
-        end
-        return nil
-    end
-
-    ---------------------------------------------------------------- Instant TP helpers
-    local function frozenCamera()
-        local cam = workspace.CurrentCamera
-        if not cam then return function() end end
-        local oldType, frame = cam.CameraType, cam.CFrame
-        pcall(function()
-            cam.CameraType = Enum.CameraType.Scriptable
-            cam.CFrame = frame
-        end)
-        return function() pcall(function() cam.CameraType = oldType end) end
-    end
-
-    local fpsGen = 0
-    local function fpsOn()
-        if typeof(setfpscap) ~= "function" then return end
-        fpsGen += 1
-        local mine = fpsGen
-        task.spawn(function()
-            local high, started = true, os.clock()
-            while fpsGen == mine and os.clock() - started < 60 do
-                pcall(setfpscap, high and FPS[1] or FPS[2])
-                high = not high
-                task.wait(FPS[3])
-            end
-        end)
-    end
-    local function fpsOff()
-        fpsGen += 1
-        if typeof(setfpscap) == "function" then pcall(setfpscap, 240) end
-    end
-
-    local stealClone = nil
-    local function dropClone()
-        local c = stealClone
-        stealClone = nil
-        if c then pcall(function() c:Destroy() end) end
-    end
-    local function postClone()
-        dropClone()
-        local c = LP.Character
-        if not c then return end
-        local was = c.Archivable
-        c.Archivable = true
-        local copy = c:Clone()
-        c.Archivable = was
-        if copy then
-            for _, d in ipairs(copy:GetDescendants()) do
-                if d:IsA("LuaSourceContainer") or d:IsA("Humanoid") then
-                    pcall(function() d:Destroy() end)
-                elseif d:IsA("BasePart") then
-                    d.Anchored = true
-                    d.CanCollide = false
-                    d.CanTouch = false
-                    d.CanQuery = false
-                end
-            end
-            copy.Name = "Clone"
-            copy.Parent = workspace
-            stealClone = copy
-        end
-    end
-
-    local function lineInfo()
-        local w = workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
-        w = w and w:FindFirstChild("Areas")
-        w = w and w:FindFirstChild("SeparationLine")
-        local ok = w and w:IsA("BasePart")
-        return ok and w.Position.X or 552.2, ok and w.Position.Y or 67.67
-    end
-
-    local function homePoint()
-        for _, def in ipairs({
-            { { "GearGiver_Slap", "Podium" }, Vector3.new(-16.415, 21.072, -6.106) },
-            { { "World", "Machines", "RiftMachine", "Rift", "Meshes/VoidPortal_Cube.003" }, Vector3.new(-26.776, 1.75, 18.665) },
-            { { "__OBJECTS", "Machines", "RiftMachine", "Rift", "Meshes/VoidPortal_Cube.003" }, Vector3.new(-26.776, 1.75, 18.665) },
-        }) do
-            local node = workspace
-            for _, name in ipairs(def[1]) do
-                node = node and node:FindFirstChild(name) or nil
-            end
-            if node and node:IsA("BasePart") then
-                return node.CFrame:PointToWorldSpace(def[2])
-            end
-        end
-        return Vector3.new(528.7, 70.57, -364.11)
-    end
-
-    local function place(pos)
-        local r = root()
-        if not r then return end
-        pcall(function()
-            r.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.rad(90), 0)
-            r.AssemblyLinearVelocity = Vector3.zero
-            r.AssemblyAngularVelocity = Vector3.zero
-        end)
-    end
-
-    local dangerCache, dangerAt = {}, 0
-    local function dangers()
-        if os.clock() - dangerAt < 1 then return dangerCache end
-        dangerAt = os.clock()
-        local list = {}
-        local function add(inst)
-            local ok, cf, size = pcall(function()
-                if inst:IsA("Model") then return inst:GetBoundingBox()
-                elseif inst:IsA("BasePart") then return inst.CFrame, inst.Size end
-            end)
-            if ok and cf and size then
-                local half = Vector3.new(math.abs(size.X), 0, math.abs(size.Z)) * 0.5
-                local rot = (cf - cf.Position):VectorToWorldSpace(half)
-                local rx = math.max(math.abs(rot.X), half.X, half.Z)
-                local rz = math.max(math.abs(rot.Z), half.X, half.Z)
-                list[#list + 1] = { MinX = cf.Position.X - rx, MaxX = cf.Position.X + rx, MinZ = cf.Position.Z - rz, MaxZ = cf.Position.Z + rz }
-            end
-        end
-        local function bad(name)
-            if name == "ScrambleLocalVisuals" or name == "DrScrambleEvent" then return false end
-            name = string.lower(name)
-            return string.find(name, "portal", 1, true) or string.find(name, "teleport", 1, true)
-                or string.find(name, "mech", 1, true) or string.find(name, "arena", 1, true)
-                or string.find(name, "scramble", 1, true)
-        end
-        for _, child in ipairs(workspace:GetChildren()) do
-            if (child:IsA("Model") or child:IsA("BasePart") or child:IsA("Folder")) and bad(child.Name) then
-                if child:IsA("Folder") then
-                    for _, inner in ipairs(child:GetChildren()) do add(inner) end
-                else add(child) end
-            end
-        end
-        local b = workspace:FindFirstChild("World")
-        b = b and b:FindFirstChild("Build")
-        if b then
-            for _, child in ipairs(b:GetChildren()) do
-                if bad(child.Name) then
-                    for _, inner in ipairs(child:GetChildren()) do add(inner) end
-                end
-            end
-        end
-        dangerCache = list
-        return list
-    end
-
-    local function avoid(from, to)
-        for _, d in ipairs(dangers()) do
-            local x0, x1, z0, z1 = d.MinX - 12, d.MaxX + 12, d.MinZ - 12, d.MaxZ + 12
-            local inside = from.X >= x0 and from.X <= x1 and from.Z >= z0 and from.Z <= z1
-            if not inside then
-                local t0, t1, hit = 0, 1, true
-                for _, axis in ipairs({ { from.X, to.X - from.X, x0, x1 }, { from.Z, to.Z - from.Z, z0, z1 } }) do
-                    local pos, delta, lo, hi = axis[1], axis[2], axis[3], axis[4]
-                    if math.abs(delta) < 1e-6 then
-                        if pos < lo or pos > hi then hit = false end
-                    else
-                        local ta, tb = (lo - pos) / delta, (hi - pos) / delta
-                        if ta > tb then ta, tb = tb, ta end
-                        t0, t1 = math.max(t0, ta), math.min(t1, tb)
-                        if t0 > t1 then hit = false end
-                    end
-                end
-                if hit then
-                    local zLow, zHigh = z0 - 2, z1 + 2
-                    local z = math.abs(from.Z - zLow) <= math.abs(from.Z - zHigh) and zLow or zHigh
-                    if z < -440 or z > -290 then z = z == zLow and zHigh or zLow end
-                    local x = math.abs(from.X - x0) <= math.abs(from.X - x1) and x0 or x1
-                    if math.abs(from.Z - z) < 3 then
-                        x = math.abs(to.X - x0) <= math.abs(to.X - x1) and x0 or x1
-                    end
-                    return Vector3.new(x, to.Y, z)
-                end
-            end
-        end
-        return to
-    end
-
-    local function runToEgg(uid, egg)
-        local lineX = lineInfo()
-        local home  = homePoint()
-        local c = LP.Character
-        local h = c and c:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.PlatformStand = false
-            if c:FindFirstChildWhichIsA("Tool") then
-                pcall(function() h:UnequipTools() end)
-            end
-        end
-        local r = root()
-        if not r then return false end
-        local stage = "field"
-        if r.Position.X < lineX - 2 and Vector3.new(r.Position.X - home.X, 0, r.Position.Z - home.Z).Magnitude > 20 then
-            stage = "safe"
-        end
-        local started, lastCheck, lastPos, lastTake = os.clock(), os.clock(), r.Position, 0
-        while os.clock() - started < 120 and not S.Cancel do
-            r = root()
-            if not r then return false end
-            local flatEgg = Vector3.new(egg.X - r.Position.X, 0, egg.Z - r.Position.Z)
-            if stage == "field" and flatEgg.Magnitude <= 2.5 then break end
-            local target = egg
-            if stage == "safe" then
-                if Vector3.new(home.X - r.Position.X, 0, home.Z - r.Position.Z).Magnitude <= 6 then
-                    stage = "field"
-                else
-                    target = home
-                end
-            end
-            local wp = avoid(r.Position, target)
-            local flat = Vector3.new(wp.X - r.Position.X, 0, wp.Z - r.Position.Z)
-            local unit = flat.Magnitude > 0.01 and flat.Unit or Vector3.zero
-            local speed = math.max(walkSpeed() * CFG.SpeedCap, 8)
-            local v = unit * math.min(speed, flat.Magnitude / 0.05)
-            pcall(function()
-                r.AssemblyLinearVelocity = Vector3.new(v.X, r.AssemblyLinearVelocity.Y, v.Z)
-                if h and unit.Magnitude > 0 then h:Move(unit, false) end
-            end)
-            if os.clock() - lastCheck >= 1.5 then
-                if (r.Position - lastPos).Magnitude < 3 and h and flatEgg.Magnitude > 15 then
-                    pcall(function() h.Jump = true end)
-                end
-                lastPos, lastCheck = r.Position, os.clock()
-            end
-            if stage == "field" and flatEgg.Magnitude <= 9 and os.clock() - lastTake > 0.1 then
-                lastTake = os.clock()
-                takeEgg(uid)
-            end
-            RNS.Heartbeat:Wait()
-        end
-        r = root()
-        if r then
-            pcall(function()
-                r.AssemblyLinearVelocity = Vector3.new(0, r.AssemblyLinearVelocity.Y, 0)
-                if h then h:Move(Vector3.zero, false) end
-            end)
-        end
-        return S.Carrying or (r ~= nil and Vector3.new(egg.X - r.Position.X, 0, egg.Z - r.Position.Z).Magnitude <= 6)
-    end
-
-    local function eggNow(uid, cache)
-        local node = workspace:FindFirstChild(uid)
-        local slots = workspace:FindFirstChild("AreaEggSlotsClient")
-        node = node or (slots and slots:FindFirstChild(uid))
-        if node then
-            local ok, pos = pcall(function() return node:GetPivot().Position end)
-            if ok and pos then
-                cache.Pos, cache.At = pos, os.clock()
-                return pos
-            end
-        end
-        if os.clock() - cache.At >= 0.5 then
-            cache.At = os.clock()
-            cache.Pos = eggPosition(uid) or cache.Pos
-        end
-        return cache.Pos
-    end
-
-    local function grab(uid, timeout)
-        local cache = { At = 0 }
-        local waited, since = 0, 1
-        while not S.Carrying and waited < timeout and not S.Cancel do
-            local r = root()
-            local egg = eggNow(uid, cache)
-            local dt = math.max(RNS.Heartbeat:Wait(), 1 / 240)
-            waited += dt
-            since += dt
-            if r and egg then
-                local delta = egg - r.Position
-                if delta.Magnitude > 2 then
-                    local pace = math.max(walkSpeed() * CFG.SpeedCap, 16)
-                    local v = delta / math.max(0.08, dt)
-                    if v.Magnitude > pace then v = v.Unit * pace end
-                    pcall(function()
-                        r.AssemblyLinearVelocity = v + Vector3.new(0, workspace.Gravity * dt * 0.5, 0)
-                        r.AssemblyAngularVelocity = Vector3.zero
-                    end)
-                end
-                if since >= CFG.GrabInterval then
-                    since = 0
-                    local p = promptNear(egg - Vector3.new(0, 3, 0), 10)
-                    if p and typeof(fireproximityprompt) == "function" then
-                        pcall(function() p.HoldDuration = 0 end)
-                        pcall(fireproximityprompt, p)
-                    end
-                    task.spawn(takeEgg, uid)
-                end
-            elseif since >= CFG.GrabInterval then
-                since = 0
-                task.spawn(takeEgg, uid)
-            end
-        end
-        local r = root()
-        if r then pcall(function() r.AssemblyLinearVelocity = Vector3.zero end) end
-        return S.Carrying and S.Uid == uid
-    end
-
-    local function regrab(uid)
-        if S.Carrying then return true end
-        local r = root()
-        local egg = eggPosition(uid)
-        if r and egg and Vector3.new(r.Position.X - egg.X, 0, r.Position.Z - egg.Z).Magnitude > CFG.RegrabFar then
-            place(egg + Vector3.new(0, 3, 0))
-        end
-        return grab(uid, 3)
-    end
-
-    local function groundY(pos, fallback)
-        local y = fallback
-        pcall(function()
-            local params = RaycastParams.new()
-            params.FilterType = Enum.RaycastFilterType.Exclude
-            params.FilterDescendantsInstances = { LP.Character }
-            params.IgnoreWater = true
-            local hit = workspace:Raycast(pos + Vector3.new(0, 60, 0), Vector3.new(0, -140, 0), params)
-            if hit and hit.Material ~= Enum.Material.Water and math.abs(hit.Position.Y - fallback) < 40 then
-                y = hit.Position.Y + 3.5
-            end
-        end)
-        return y
-    end
-
-    local function carrySpeed(distance)
-        local ws = walkSpeed()
-        local base = ws * math.min(CFG.CarryRatio, CFG.SpeedCap) * S.Mult
-        local fast = base * 1.5
-        local excess = 5.5 * base
-        local limit = fast
-        if distance and distance > excess then
-            limit = math.min(fast, base * distance / (distance - excess))
-        end
-        return math.min(math.max(math.min(base * CFG.EasyRatio, limit), base), math.max(ws * CFG.SpeedCap, base))
-    end
-
-    local function runHome(lineX, laneZ)
-        local started = os.clock()
-        local home = homePoint()
-        local checkpoint = lineX - 7
-        local height = CFG.Height
-        local share = math.clamp(CFG.ClimbShare, 0.1, 0.9)
-        local descent = height * math.sqrt(1 - share * share) / share
-        local c = LP.Character
-        local h = c and c:FindFirstChildOfClass("Humanoid")
-        if h then h.PlatformStand = false end
-        local r = root()
-        if r and c and height > 0.5 and home.Y + height - 2 > r.Position.Y then
-            pcall(function()
-                c:PivotTo(CFrame.new(Vector3.new(r.Position.X, home.Y + height, r.Position.Z)) * r.CFrame.Rotation)
-                r.AssemblyLinearVelocity = Vector3.zero
-                r.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-        local start = root()
-        local speed = carrySpeed(start and (Vector3.new(start.Position.X - home.X, 0, start.Position.Z - home.Z).Magnitude + math.max(0, height) * 2) or nil)
-        local last = os.clock()
-        local timeout = 0
-        while S.Carrying and S.Delivered < started and not S.Cancel and timeout < 25 do
-            r = root()
-            if not r then return false end
-            local now = os.clock()
-            local dt = math.max(now - last, 1 / 240)
-            last = now
-            timeout += dt
-            local toHome = r.Position.X <= checkpoint + 2
-            local target = toHome and home or Vector3.new(checkpoint, home.Y, laneZ)
-            if toHome and Vector3.new(home.X - r.Position.X, 0, home.Z - r.Position.Z).Magnitude < 2 then break end
-            local aim = avoid(r.Position, target)
-            local flat = Vector3.new(aim.X - r.Position.X, 0, aim.Z - r.Position.Z)
-            local remaining = toHome and 0 or math.max(0, r.Position.X - checkpoint)
-            local wantY = home.Y + height
-            if toHome or remaining <= descent then
-                wantY = home.Y + height * math.clamp(remaining / math.max(descent, 1), 0, 1)
-            end
-            local vy = math.clamp((wantY - r.Position.Y) / 0.12, -speed * share, speed * share)
-            local horizontal = math.sqrt(math.max(speed * speed - vy * vy, 0))
-            local v = flat.Magnitude > 0.01 and flat.Unit * math.min(horizontal, flat.Magnitude / 0.05) or Vector3.zero
-            pcall(function() r.AssemblyLinearVelocity = Vector3.new(v.X, vy, v.Z) end)
-            RNS.Heartbeat:Wait()
-        end
-        if h then pcall(function() h:Move(Vector3.zero, false) end) end
-        local settle = 0
-        while settle < 2 and S.Delivered < started and S.Carrying and not S.Cancel do
-            settle += RNS.Heartbeat:Wait()
-        end
-        if S.Carrying and S.Delivered < started and not S.Cancel then
-            task.wait(0.2)
-            dropEgg()
-            local waited = 0
-            while S.Delivered < started and waited < 1 do waited += RNS.Heartbeat:Wait() end
-        end
-        return S.Delivered >= started
-    end
-
-    local function instantTP(uid)
-        local started = os.clock()
-        local lineX, lineY = lineInfo()
-        local r = root()
-        if not r then return false end
-        local laneZ = math.clamp(r.Position.Z, -425, -300)
-        local landing = Vector3.new(lineX + CFG.LandOffset, lineY + 3.35, laneZ)
-        local hopStep = math.max(walkSpeed() * CFG.HopRatio, CFG.HopMin)
-        local hopY = r.Position.Y + CFG.HopLift
-        local x = r.Position.X
-        local retries = 0
-        local releaseCamera = frozenCamera()
-        S.ReleaseCamera = releaseCamera
-        pcall(postClone)
-        fpsOn()
-        while x - hopStep > landing.X and not S.Cancel do
-            if not S.Carrying then
-                if not regrab(uid) then break end
-                local cur = root()
-                if cur then x = math.min(x, cur.Position.X) end
-                continue
-            end
-            local nextX = x - hopStep
-            local pulledBefore = S.PulledAt
-            local held = 0
-            while held < CFG.HopGap do
-                place(Vector3.new(nextX, hopY, laneZ))
-                held += RNS.Heartbeat:Wait()
-            end
-            local check = root()
-            local pulled = S.PulledAt > pulledBefore or (check ~= nil and (check.Position.X - nextX > 10 or check.AssemblyLinearVelocity.Magnitude > 150))
-            if pulled and S.Carrying and not S.Cancel then
-                retries += 1
-                CFG.HopGap = math.min(CFG.HopGapMax, CFG.HopGap + 0.02)
-                if retries > CFG.HopRetries then break end
-                local settle = 0
-                while settle < 0.12 and not S.Cancel do
-                    place(Vector3.new(x, hopY, laneZ))
-                    settle += RNS.Heartbeat:Wait()
-                end
-            else
-                x = nextX
-                CFG.HopGap = math.max(CFG.HopGapMin, CFG.HopGap - 0.01)
-            end
-        end
-        landing = Vector3.new(landing.X, groundY(landing, landing.Y), landing.Z)
-        local function land()
-            local cur = root()
-            if cur and cur.Position.X <= landing.X + 1 and cur.Position.Y > landing.Y - 25 then
-                pcall(function() cur.AssemblyLinearVelocity = Vector3.zero end)
-                return
-            end
-            place(landing)
-        end
-        land()
-        for attempt = 1, 3 do
-            local settle = 0
-            while settle < CFG.LandSettle and not S.Cancel do
-                settle += RNS.Heartbeat:Wait()
-            end
-            local landed = root()
-            if S.Carrying and landed and (landed.Position.X - landing.X > 12 or landed.Position.Y < landing.Y - 25) then
-                land()
-            else
-                break
-            end
-        end
-        dropClone()
-        if S.Carrying and not S.Cancel then
-            local delay = 0
-            while delay < CFG.DropDelay do delay += RNS.Heartbeat:Wait() end
-            dropEgg()
-            local waited = 0
-            while S.Carrying and waited < 1 and not S.Cancel do waited += RNS.Heartbeat:Wait() end
-            local cur = root()
-            if cur then
-                pcall(function()
-                    cur.AssemblyLinearVelocity = Vector3.zero
-                    cur.AssemblyAngularVelocity = Vector3.zero
-                end)
-            end
-            releaseCamera()
-            dropClone()
-            if not grab(uid, 3) and not regrab(uid) then
-                fpsOff()
-                return false
-            end
-            dropClone()
-        end
-        releaseCamera()
-        local ok = false
-        if S.Carrying then ok = runHome(lineX, laneZ) end
-        fpsOff()
-        return ok or S.Delivered >= started
-    end
-
-    local function stealAndDeliver(uid)
-        if S.Busy then return end
-        S.Busy  = true
-        S.Cancel = false
-        task.spawn(function()
-            local ok, err = pcall(function()
-                S.LastStatus = "Looking"
-                local egg = eggPosition(uid)
-                if not egg then S.LastStatus = "Gone"; return end
-                if S.Carrying and S.Uid ~= uid then
-                    dropEgg()
-                    local waited = 0
-                    while S.Carrying and waited < 1 do waited += RNS.Heartbeat:Wait() end
-                end
-                fpsOn()
-                S.LastStatus = "Going"
-                if not runToEgg(uid, egg) then fpsOff(); S.LastStatus = "No reach"; return end
-                S.LastStatus = "Taking"
-                if not grab(uid, 4) then fpsOff(); S.LastStatus = "No hold"; return end
-                S.LastStatus = "Delivering"
-                local delivered = instantTP(uid)
-                S.LastStatus = delivered and "Delivered" or "Failed"
-            end)
-            fpsOff()
-            dropClone()
-            if S.ReleaseCamera then pcall(S.ReleaseCamera); S.ReleaseCamera = nil end
-            if not ok then S.LastStatus = "Error: " .. tostring(err) end
-            S.Busy = false
-        end)
-    end
-
-    ---------------------------------------------------------------- main loop
-    local function pickTarget()
-        local runtime = genv.__BabisV4EggRuntime
-        if runtime and type(runtime._chooseTarget) == "function" then
-            local ok, rec = pcall(runtime._chooseTarget, runtime)
-            if ok and type(rec) == "table" and rec.Uid then return rec end
-        end
-        local best, bestScore
-        for _, rec in ipairs(snapshot()) do
-            if not S.Cancel then
-                local score = (rec.AssetScale or 1) + (rec.AreaId == "Forest" and 100 or 0)
-                if not bestScore or score > bestScore then
-                    best, bestScore = rec, score
-                end
-            end
-        end
-        return best
-    end
-
-    local function loop()
-        while S.Enabled do
-            if not S.Busy and not S.Cancel then
-                local runtime = genv.__BabisV4EggRuntime
-                local wallOpen = true
-                if runtime and type(runtime._wallOpen) == "function" then
-                    local ok, v = pcall(runtime._wallOpen, runtime)
-                    wallOpen = ok and v or true
-                end
-                if wallOpen then
-                    local target = pickTarget()
-                    if target and target.Uid then
-                        stealAndDeliver(target.Uid)
-                    end
-                end
-            end
-            task.wait(1.2)
-        end
-    end
-
-    S.Start = function()
-        if S.Enabled then return end
-        S.Enabled = true
-        S.Cancel = false
-        shieldStart()
-        S.LoopThread = task.spawn(loop)
-    end
-    S.Stop = function()
-        if not S.Enabled then return end
-        S.Enabled = false
-        S.Cancel = true
-        shieldStop()
-        fpsOff()
-        dropClone()
-        if S.ReleaseCamera then pcall(S.ReleaseCamera); S.ReleaseCamera = nil end
-        S.LoopThread = nil
-    end
-
-    genv.__BabisV4InstaSteal = S
-end
--- <<< FIM MÓDULO INSTA STEAL >>>
 			v4742 = BabisLibOverride:Window({
 				Title = "Babis",
 				Footer = "Steal An Egg",
@@ -30604,31 +29715,12 @@ end
 			end
 
 			local v4791 = v4742:AddTab({
-				Name = "Admin Abuse",
-				Icon = "flame"
-			})
-
-			t216.autoStealCapture = v4791:AddSection("Capture The Egg"):AddToggle({
-				Title = "Auto Steal Capture",
-				Content = "For the Capture The Egg event. Grabs the event egg for you and keeps you holding it in a safe spot so your time keeps going. Turn off normal Auto Steal while using this.",
-				Default = false,
-				Callback = v4732(v4724)
+				Name = "Movement",
+				Icon = "move"
 			})
 
 			local Movement = v4791:AddSection("Movement")
 
-			t216.adminBoost = Movement:AddToggle({
-				Title = "Admin Abuse Boost",
-				Content = "Only works during Admin Abuse. Do not use it when there is no Admin Abuse.",
-				Default = false,
-				Callback = v4732(v4750)
-			})
-			t216.flyForCapture = Movement:AddToggle({
-				Title = "Fly For Capture",
-				Content = "For the Capture The Egg event. After you pick up an egg, you fly up and stay still in the air so nobody can take it.",
-				Default = false,
-				Callback = v4732(v4722)
-			})
 			t216.instantGrab = Movement:AddToggle({
 				Title = "Instant Grab",
 				Content = "Picking up an egg only needs a quick tap instead of a long hold.",
@@ -30646,12 +29738,6 @@ end
 				Content = "Walk through walls and doors.",
 				Default = false,
 				Callback = v4732(v4560)
-			})
-			t216.autoRingEvent = v4791:AddSection("Ring Event"):AddToggle({
-				Title = "Auto Ring Event",
-				Content = "Starts at the safe zone, then glides Forest -> Angels & Demons -> back to Forest on a loop. Turn off Auto Steal while using this.",
-				Default = false,
-				Callback = v4732(v4569)
 			})
 		end
 
@@ -30698,14 +29784,14 @@ end
 			})
 			t216.stealMode = v4794:AddDropdown({
 				Title = "Steal Mode",
-				Content = "If you have good speed better use High Speed User, but if you are newbie, use Low Speed User",
+				Content = "Instant is the default. Choose a High Speed mode if preferred.",
 				Options = {
-					"Low Speed User",
+					"Instant",
 					"High Speed User",
 					"High Speed User (Fly)"
 				},
 				MaxVisible = 3,
-				Default = "High Speed User",
+				Default = "Instant",
 				Multi = false,
 				Callback = v4732(v4536)
 			})
@@ -30715,8 +29801,8 @@ end
 			end
 
 			t216.stealHold = v4794:AddSlider({
-				Title = "Low Speed Multiplier",
-				Content = "For Low Speed User. Higher = faster grab, lower = safer. Lower it if steals keep failing.",
+				Title = "Instant Mode Multiplier",
+				Content = "Higher means a faster grab; lower is safer. Reduce it if steals keep failing.",
 				Min = 1,
 				Max = 10,
 				Default = 5,
@@ -31380,7 +30466,7 @@ end
 								t223[#t223 + 1] = ("%s %d"):format(v4832[v] and v4832[v].name or v, snap.counts and snap.counts[v] or 0)
 							end
 
-							v4819:SetContent(("%s\n%s  Ãƒâ€šÃ‚Â·  Essence %d  Ãƒâ€šÃ‚Â·  Caught %d\n%s\n%s"):format(v4833, snap.net and (snap.holding and "Net equipped" or "Net owned") or "No Butterfly Net", snap.essence or 0, snap.caught or 0, table.concat(t223, "  Ãƒâ€šÃ‚Â·  "), tostring(__BabisV4ButterflyRuntime.status or "Idle")))
+							v4819:SetContent(("%s\n%s   |   Essence %d   |   Caught %d\n%s\n%s"):format(v4833, snap.net and (snap.holding and "Net equipped" or "Net owned") or "No Butterfly Net", snap.essence or 0, snap.caught or 0, table.concat(t223, "   |   "), tostring(__BabisV4ButterflyRuntime.status or "Idle")))
 						end)
 					end
 
@@ -31502,8 +30588,8 @@ end
 
 					if __BabisV4ScrambleTradeIn then
 						pcall(function()
-							v4846:SetContent(string.format([[%s  Ãƒâ€šÃ‚Â·  %s
-Rotates in %02d:%02d  Ãƒâ€šÃ‚Â·  Pity %d/%d  Ãƒâ€šÃ‚Â·  Free rerolls %d  Ãƒâ€šÃ‚Â·  Traded %d
+							v4846:SetContent(string.format([[%s   |   %s
+Rotates in %02d:%02d   |   Pity %d/%d   |   Free rerolls %d   |   Traded %d
 Recipe (%d/%d): %s
 Held: %s
 Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status, math.floor(__BabisV4ScrambleTradeIn.rotation / 60), __BabisV4ScrambleTradeIn.rotation % 60, __BabisV4ScrambleTradeIn.pity, __BabisV4ScrambleTradeIn.pityMax, __BabisV4ScrambleTradeIn.free, __BabisV4ScrambleTradeIn.trades, __BabisV4ScrambleTradeIn.ready, __BabisV4ScrambleTradeIn.total, __BabisV4ScrambleTradeIn.demands, __BabisV4ScrambleTradeIn.stock, __BabisV4ScrambleTradeIn.missing))
@@ -31538,13 +30624,39 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 
 					if __BabisV4ScrambleBoss then
 						pcall(function()
-							v4848:SetContent(string.format("%s  Ãƒâ€šÃ‚Â·  joins %d  Ãƒâ€šÃ‚Â·  hits %d", tostring(__BabisV4ScrambleBoss.status), __BabisV4ScrambleBoss.joins or 0, __BabisV4ScrambleBoss.hits or 0))
+							v4848:SetContent(string.format("%s   |   joins %d   |   hits %d", tostring(__BabisV4ScrambleBoss.status), __BabisV4ScrambleBoss.joins or 0, __BabisV4ScrambleBoss.hits or 0))
 						end)
 					end
 
 					task.wait(1)
 				end
 			end)
+
+			local EventActions = v4804:AddSection("Capture & Admin Events")
+			t216.autoStealCapture = EventActions:AddToggle({
+				Title = "Auto Steal Capture",
+				Content = "For Capture the Egg. Grabs the event egg and keeps you holding it in a safe spot. Turn off normal Auto Steal while using this.",
+				Default = babisV4Config.AutoStealCapture == true,
+				Callback = v4732(v4724)
+			})
+			t216.flyForCapture = EventActions:AddToggle({
+				Title = "Fly For Capture",
+				Content = "After you pick up an event egg, rises into the air and stays still to keep it safe.",
+				Default = babisV4Config.FlyForCapture == true,
+				Callback = v4732(v4722)
+			})
+			t216.adminBoost = EventActions:AddToggle({
+				Title = "Admin Abuse Boost",
+				Content = "Only works during Admin Abuse.",
+				Default = genv.__BabisV4AdminBoost == true,
+				Callback = v4732(v4750)
+			})
+			t216.autoRingEvent = EventActions:AddToggle({
+				Title = "Auto Ring Event",
+				Content = "Starts in the safe zone, glides from Forest to Angels & Demons, then returns to Forest and repeats.",
+				Default = babisV4Config.AutoRingEvent == true,
+				Callback = v4732(v4569)
+			})
 
 			local Treadmill = v4799:AddSection("Treadmill")
 
@@ -31628,7 +30740,7 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 			})
 			Windows:AddButton({
 				Title = "Egg Checker",
-				Content = "Pick eggs off the field by hand, then send them all to the steal queue.",
+				Content = "Pick eggs from the field, then send them to the steal queue.",
 				Callback = v4732(function()
 					babisPanels.openChecker()
 				end)
@@ -31716,7 +30828,7 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 				local v4858
 
 				while v16() do
-					local v4859 = "Now: " .. #Players:GetPlayers() .. " player(s)  Ãƒâ€šÃ‚Â·  Max: " .. t145.privateMax() .. "\n" .. tostring(t145.privateStatus or "")
+					local v4859 = "Now: " .. #Players:GetPlayers() .. " player(s)   |   Max: " .. t145.privateMax() .. "\n" .. tostring(t145.privateStatus or "")
 
 					if v4859 ~= v4858 then
 						v4858 = v4859
@@ -31885,7 +30997,7 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 
 			t216.stealPlayers = v4870:AddToggle({
 				Title = "Auto Steal From Players",
-				Content = "Chases anyone carrying an egg in the field, bats them until the egg drops, grabs it and banks it. A carrier is only chased when the egg clears the filters below.",
+				Content = "Chases anyone carrying an egg in the field and hits them until the egg drops, then grabs and banks it. A carrier is only chased when the egg passes the filters below.",
 				Default = false,
 				Callback = v4732(v4734)
 			})
@@ -32153,7 +31265,7 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 				pcall(function()
 					v4892:Refresh(fish)
 				end)
-				__BabisV4Visual.status = #rods > 0 and string.format("%d rods and %d fish available", #rods, #fish) or "Could not load the item list. Try again later."
+				__BabisV4Visual.status = #rods > 0 and string.format("%d rods and %d fish available", #rods, #fish) or "Could not load the itin list. Try again later."
 				v4888()
 			end)
 
@@ -32382,6 +31494,10 @@ Missing: %s]], __BabisV4ScrambleTradeIn.banner, __BabisV4ScrambleTradeIn.status,
 
 		do
 			genv.__BabisV4HubShutdown = function()
+				if type(genv.__BabisV4ClHubInstantStealCleanup) == "function" then
+					pcall(genv.__BabisV4ClHubInstantStealCleanup)
+					genv.__BabisV4ClHubInstantStealCleanup = nil
+				end
 				if __BabisV4PlayerSteal then
 					pcall(__BabisV4PlayerSteal.setEnabled, __BabisV4PlayerSteal, false)
 				end
@@ -32422,6 +31538,6 @@ getgenv().__BabisV4Loops = {
     runOnce = t24.runOnce,
 }
 
-	--v4315()
+	-- v4315()
 end
 
